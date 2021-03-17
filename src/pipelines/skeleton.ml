@@ -25,7 +25,7 @@ let stages =
         "prng";
       ] );
     (* removed tracing: not supported anywhere. *)
-    ("5: applications", "applications", [ "dhcp"; "dns"; "static_website_tls" ]);
+    ("5: applications", "applications", [ "dhcp"; "dns"; "static_website_tls"; "crypto"; "git" ]);
   ]
 
 (* muen: no support for block *)
