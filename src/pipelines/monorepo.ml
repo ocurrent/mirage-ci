@@ -87,6 +87,7 @@ let v ~(platform : Platform.t) ~roots ~mode ?(src = Current.return []) ?(toolcha
         run "touch monorepo.opam; touch monorepo.ml";
         run "find . -type f -name 'dune-project' -exec sed 's/(strict_package_deps)//g' -i {} \\;";
         (* Dune issue with strict_package_deps *)
+        run "opam exec -- dune upgrade --root duniverse/";
         run "opam exec -- dune build --profile release --debug-dependency-path %a" pp_toolchain
           toolchain;
         run "du -sh _build/";
@@ -172,6 +173,8 @@ let docs ~(system : Platform.system) ~repos ~lock =
         (* disable vendoring *)
         run "find . -type f -name 'dune-project' -exec sed 's/(strict_package_deps)//g' -i {} \\;";
         (* Dune issue with strict_package_deps *)
+        run "opam exec -- dune upgrade";
+        (* Upgrade jbuild files *)
         run
           "opam exec -- dune build @doc --profile release --debug-dependency-path || echo \"Build \
            failed. It's ok.\"";
