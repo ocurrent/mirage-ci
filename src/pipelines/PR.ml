@@ -127,21 +127,39 @@ let make github repos =
                          ~value:"" ~input:commit)
              |> Current.list_seq)
       |> update mirage_skeleton_prs
-      (*and mirage_dev = Current.list_map (module Github.Api.Commit) (fun gh_mirage_dev ->
+    and mirage_dev =
+      Current.list_map
+        (module Github.Api.Commit)
+        (fun gh_mirage_dev ->
           let mirage_dev = id_of gh_mirage_dev in
-          perform_test ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage-dev" gh_mirage_dev) gh_mirage_dev.ci
-          |> update mirage_dev_prs
-        and mirage = Current.list_map (module Github.Api.Commit) (fun gh_mirage ->
+          Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
+          |> List.map (fun platform ->
+                 perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage-dev"
+                   gh_mirage_dev
+                 |> Current.collapse
+                      ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
+                      ~value:"" ~input:gh_mirage_dev)
+          |> Current.list_seq)
+        gh_mirage_dev.ci
+      |> update mirage_dev_prs
+    and mirage =
+      Current.list_map
+        (module Github.Api.Commit)
+        (fun gh_mirage ->
           let mirage = id_of gh_mirage in
-          perform_test ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage" gh_mirage) gh_mirage.ci
-          |> update mirage_prs*)
+          Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
+          |> List.map (fun platform ->
+                 perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage"
+                   gh_mirage
+                 |> Current.collapse
+                      ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
+                      ~value:"" ~input:gh_mirage)
+          |> Current.list_seq)
+        gh_mirage.ci
+      |> update mirage_prs
     in
     Current.all_labelled
-      [
-        ("mirage-skeleton", mirage_skeleton);
-        (*("mirage-dev", mirage_dev);
-          ("mirage", mirage);*)
-      ]
+      [ ("mirage-skeleton", mirage_skeleton); ("mirage-dev", mirage_dev); ("mirage", mirage) ]
   in
   {
     pipeline;
@@ -167,7 +185,7 @@ let r (pr : pr_info) =
         let url = job_id |> Option.map (fun id -> Fmt.str "/job/%s" id) in
         (update, url)
       in
-      let html, css = Current.Analysis.to_html_css ~job_info pipeline in
+      let html, _ = Current.Analysis.to_html_css ~job_info pipeline in
       Context.respond_ok ctx
         [
           style
