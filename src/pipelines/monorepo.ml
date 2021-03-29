@@ -12,7 +12,7 @@ let pp_toolchain () = function Host -> "" | Freestanding -> "-x freestanding"
 let get_monorepo_library ~mirage_only =
   let pp_libraries f Universe.{ name; sublibs; mirage } =
     if mirage && not mirage_only then
-      let names = name :: List.map (fun sublibname -> name ^ "." ^ sublibname) sublibs in
+      let names = List.map (fun sublibname -> name ^ "." ^ sublibname) sublibs in
       Fmt.pf f "%a" Fmt.(list ~sep:(const string " ") string) names
     else ()
   in
