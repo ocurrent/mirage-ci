@@ -3,6 +3,11 @@ open Current.Syntax
 
 let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
 
+let is_available_on (platform: Platform.t) = function 
+  | "unix" | "hvt" -> true
+  | "xen" when platform.arch = Amd64 -> true 
+  | _ -> false
+
 let stages =
   [
     ("1: test-target", "tutorial", [ "noop" ]);
@@ -116,7 +121,9 @@ let multi_stage_test ~platform ~targets ~configure ~run_test mirage_skeleton =
         in
         aux ~target mirage_skeleton q
   in
-  List.map (fun target -> (target, aux ~target mirage_skeleton stages)) targets
+  targets 
+  |> List.filter (is_available_on platform)
+  |> List.map (fun target -> (target, aux ~target mirage_skeleton stages))
   |> Current.all_labelled
 
 (* MIRAGE 4 TEST *)
