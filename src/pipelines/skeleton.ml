@@ -64,9 +64,9 @@ let run_test_mirage_4 { unikernel; platform; target } configuration =
         ~repos ~opam:configuration c.monorepo
     and+ skeleton = c.skeleton in
     Current_git.Commit.id skeleton
-  in
+  in 
   Mirage.build ~platform ~base ~project:skeleton ~unikernel ~target ()
-  |> Current.collapse ~key:("Unikernel " ^ unikernel ^ "@" ^ target) ~value:"" ~input:c.repos
+  |> Current.collapse ~key:("Unikernel " ^ unikernel ^ "@" ^ target) ~value:("4-"^Platform.platform_id platform) ~input:c.repos
 
 type configuration_main = {
   mirage : Current_git.Commit_id.t Current.t;
@@ -88,7 +88,7 @@ let run_test_mirage_main { unikernel; platform; target } configuration =
          [ Obuilder_spec.run ~network:Setup.network "opam pin -n -y %s" (Setup.remote_uri mirage) ]
   in
   Mirage.build ~platform ~cmd:"mirage build" ~base ~project:c.skeleton ~unikernel ~target ()
-  |> Current.collapse ~key:("Unikernel " ^ unikernel ^ "@" ^ target) ~value:"" ~input:c.repos
+  |> Current.collapse ~key:("Unikernel " ^ unikernel ^ "@" ^ target) ~value:("main-"^Platform.platform_id platform) ~input:c.repos
 
 let test_stage ~stage ~unikernels ~target ~platform ~run_test configuration =
   unikernels
@@ -108,7 +108,7 @@ let multi_stage_test ~platform ~targets ~configure ~run_test mirage_skeleton =
         let configuration = configure skeleton in
         let test_stage =
           test_stage ~run_test ~stage ~unikernels ~target ~platform configuration
-          |> Current.collapse ~key:("Test stage " ^ name) ~value:"" ~input:skeleton
+          |> Current.collapse ~key:("Test stage " ^ name) ~value:target ~input:skeleton
         in
         let mirage_skeleton =
           let+ _ = test_stage and+ skeleton = skeleton in

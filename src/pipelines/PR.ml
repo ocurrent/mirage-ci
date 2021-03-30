@@ -22,7 +22,7 @@ let repo_refs ~github repo =
 
 let github_setup ~github owner name =
   let gh = { Github.Repo_id.owner; name } in
-  let ci_refs = Github.Api.ci_refs ~staleness:(Duration.of_day 30) github gh in
+  let ci_refs = Github.Api.ci_refs ~staleness:(Duration.of_day 90) github gh in
   let repo_refs = repo_refs ~github gh in
   let default_branch = Github.Api.head_commit github gh in
   { ci = ci_refs; refs = repo_refs; main = default_branch }
@@ -94,6 +94,10 @@ let url_of_commit (commit : Github.Api.Commit.t) (refs : Github.Api.refs) =
   | [] -> ("no refs point to this commit", "")
   | (ref, _) :: _ -> (Fmt.str "Github: %a" Api.Ref.pp ref, Fmt.to_to_string (pp_url ~repo) ref)
 
+(* WE PERFORM THREE SETS OF TESTS
+- mirage skeleton 'master' / mirage '3'
+- mirage skeleton 'master' / mirage released
+- mirage skeleton 'mirage-dev' / mirage 'master' / mirage-dev 'master'  *)
 let make github repos =
   let id_of gh_commit = Current.map Github.Api.Commit.id gh_commit in
   let gh_mirage_skeleton = github_setup ~github "mirage" "mirage-skeleton" in
@@ -124,38 +128,42 @@ let make github repos =
                       "mirage-skeleton" commit
                     |> Current.collapse
                          ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
-                         ~value:"" ~input:commit)
+                         ~value:"mirage-skeleton" ~input:commit)
              |> Current.list_seq)
       |> update mirage_skeleton_prs
     and mirage_dev =
-      Current.list_map
-        (module Github.Api.Commit)
-        (fun gh_mirage_dev ->
-          let mirage_dev = id_of gh_mirage_dev in
-          Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
-          |> List.map (fun platform ->
-                 perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage-dev"
-                   gh_mirage_dev
-                 |> Current.collapse
-                      ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
-                      ~value:"" ~input:gh_mirage_dev)
-          |> Current.list_seq)
-        gh_mirage_dev.ci
+      gh_mirage_dev.ci |> Current.pair gh_mirage_dev.refs
+      |> Current.map (fun (refs, commits) -> List.map (fun c -> (c, url_of_commit c refs)) commits)
+      |> Current.list_map_url
+           (module CommitUrl)
+           (fun gh_mirage_dev ->
+             let gh_mirage_dev = Current.map fst gh_mirage_dev in
+             let mirage_dev = id_of gh_mirage_dev in
+             Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
+             |> List.map (fun platform ->
+                    perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage-dev"
+                      gh_mirage_dev
+                    |> Current.collapse
+                         ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
+                         ~value:"mirage-dev" ~input:gh_mirage_dev)
+             |> Current.list_seq)
       |> update mirage_dev_prs
     and mirage =
-      Current.list_map
-        (module Github.Api.Commit)
-        (fun gh_mirage ->
-          let mirage = id_of gh_mirage in
-          Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
-          |> List.map (fun platform ->
-                 perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage"
-                   gh_mirage
-                 |> Current.collapse
-                      ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
-                      ~value:"" ~input:gh_mirage)
-          |> Current.list_seq)
-        gh_mirage.ci
+      gh_mirage.ci |> Current.pair gh_mirage.refs
+      |> Current.map (fun (refs, commits) -> List.map (fun c -> (c, url_of_commit c refs)) commits)
+      |> Current.list_map_url
+           (module CommitUrl)
+           (fun gh_mirage ->
+             let gh_mirage = Current.map fst gh_mirage in
+             let mirage = id_of gh_mirage in
+             Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
+             |> List.map (fun platform ->
+                    perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage"
+                      gh_mirage
+                    |> Current.collapse
+                         ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
+                         ~value:"mirage" ~input:gh_mirage)
+             |> Current.list_seq)
       |> update mirage_prs
     in
     Current.all_labelled
