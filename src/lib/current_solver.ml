@@ -1,6 +1,22 @@
-type resolution = { name : string; version : string; opamfile : Opamfile.t } [@@deriving yojson]
+type resolution = { name : string; version : string } [@@deriving yojson]
 
-module Solver = Opam_0install.Solver.Make (Dirs_context)
+type t = { resolutions : resolution list; repos : Repository.t list }
+
+let solver = Solver_pool.spawn_local ()
+
+let job_log job =
+  let module X = Solver_api.Raw.Service.Log in
+  X.local
+  @@ object
+       inherit X.service
+
+       method write_impl params release_param_caps =
+         let open X.Write in
+         release_param_caps ();
+         let msg = Params.msg_get params in
+         Current.Job.write job msg;
+         Capnp_rpc_lwt.Service.(return (Response.create_empty ()))
+     end
 
 module Op = struct
   type t = No_context
@@ -27,7 +43,7 @@ module Op = struct
   end
 
   module Value = struct
-    type t = resolution list [@@deriving yojson]
+    type t = { resolutions : resolution list; repos : (string * string) list } [@@deriving yojson]
 
     let marshal t = t |> to_yojson |> Yojson.Safe.to_string
 
@@ -42,10 +58,6 @@ module Op = struct
 
   open Lwt.Syntax
 
-  let env ~(system : Platform.system) =
-    Opam_0install.Dir_context.std_env ~arch:"x86_64" ~os:"linux" ~os_distribution:"linux"
-      ~os_version:(Platform.os_version system.os) ~os_family:(Platform.os_family system.os) ()
-
   let with_checkouts ~job commits fn =
     let rec aux acc = function
       | [] -> fn (List.rev acc)
@@ -56,47 +68,71 @@ module Op = struct
 
   let build No_context job { Key.repos; packages; system } =
     let* () = Current.Job.start ~level:Harmless job in
-    let repos = List.map snd repos in
-    with_checkouts ~job repos @@ fun dirs ->
-    let ocaml_package = OpamPackage.Name.of_string "ocaml" in
-    let ocaml_version =
-      OpamPackage.Version.of_string (Fmt.str "%a" Platform.pp_exact_ocaml system.ocaml)
+    let repos_git = List.map snd repos in
+    with_checkouts ~job repos_git @@ fun dirs ->
+    let constraints = [ ("ocaml", Fmt.to_to_string Platform.pp_exact_ocaml system.ocaml) ] in
+    let opam_repos_folders =
+      List.combine dirs repos_git
+      |> List.map (fun (dir, repo) -> (Fpath.to_string dir, Current_git.Commit.hash repo))
     in
-    let dirs = List.map (fun dir -> Fpath.(to_string (dir / "packages"))) dirs in
-    let solver_context =
-      Dirs_context.create
-        ~constraints:(OpamPackage.Name.Map.singleton ocaml_package (`Eq, ocaml_version))
-        ~env:(env ~system) ~test:OpamPackage.Name.Set.empty dirs
+    let pkgs = "ocaml" :: packages in
+    let request =
+      Solver_api.Worker.Solve_request.
+        {
+          opam_repos_folders;
+          pkgs;
+          constraints;
+          platforms =
+            [
+              ( "default",
+                Solver_api.Worker.Vars.
+                  {
+                    arch = "x86_64";
+                    os = "linux";
+                    os_distribution = "linux";
+                    os_family = Platform.os_family system.os;
+                    os_version = Platform.os_version system.os;
+                  } );
+            ];
+        }
     in
-    let t0 = Unix.gettimeofday () in
-    let r =
-      Solver.solve solver_context
-        (ocaml_package :: (packages |> List.map OpamPackage.Name.of_string))
-    in
-    let t1 = Unix.gettimeofday () in
-    Printf.printf "%.2f\n" (t1 -. t0);
+    Capnp_rpc_lwt.Capability.with_ref (job_log job) @@ fun log ->
+    let+ r = Solver_api.Solver.solve solver request ~log in
+
     match r with
-    | Ok sels ->
-        let pkgs = Solver.packages_of_result sels in
-        Lwt.return_ok
-          (List.map
-             (fun pk ->
-               {
-                 name = OpamPackage.name pk |> OpamPackage.Name.to_string;
-                 version = OpamPackage.version pk |> OpamPackage.Version.to_string;
-                 opamfile =
-                   Dirs_context.get_opamfile solver_context pk
-                   |> OpamFile.OPAM.write_to_string |> Opamfile.unmarshal
-                   (* hmm *);
-               })
-             pkgs)
-    | Error diagnostics -> Lwt.return (Error (`Msg (Solver.diagnostics diagnostics)))
+    | Ok [] -> Fmt.error_msg "no platform"
+    | Ok [ { commits; packages; _ } ] ->
+        let resolutions =
+          List.map
+            (fun pkg ->
+              let opam = OpamPackage.of_string pkg in
+              {
+                name = OpamPackage.name_to_string opam;
+                version = OpamPackage.version_to_string opam;
+              })
+            packages
+        in
+        Ok Value.{ resolutions; repos = commits }
+    | Ok _ -> Fmt.error_msg "??"
+    | Error (`Msg msg) -> Fmt.error_msg "Error from solver: %s" msg
 end
 
 module Solver_cache = Current_cache.Make (Op)
+module Git = Current_git
 
 let v ~system ~repos ~packages =
   let open Current.Syntax in
   Current.component "solver (%s)" (String.concat "," packages)
   |> let> repos = repos in
      Solver_cache.get No_context { system; repos; packages }
+     |> Current.Primitive.map_result
+          (Result.map (fun Op.Value.{ resolutions; repos = repos_raw } ->
+               let repos =
+                 List.combine repos repos_raw
+                 |> List.map (fun ((name, commit), (_, hash)) ->
+                        let id = Git.Commit.id commit in
+                        ( name,
+                          Git.Commit_id.v ~repo:(Git.Commit_id.repo id)
+                            ~gref:(Git.Commit_id.gref id) ~hash ))
+               in
+               { resolutions; repos }))

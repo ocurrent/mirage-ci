@@ -7,7 +7,7 @@ val install_tools : string list -> Obuilder_spec.op list
 val tools_image :
   system:Platform.system ->
   ?name:string ->
-  Current_solver.resolution list Current.t ->
+  Current_solver.t Current.t ->
   Current_docker.Default.Image.t Current.t
 (** [tools_image ~system ~name resolutions] generates a docker image containing 
 the resolved packages. [name] is used to label the image. *)
