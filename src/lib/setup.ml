@@ -12,6 +12,10 @@ let add_repositories =
   List.map (fun (name, commit) ->
       Obuilder_spec.run ~network "opam repo add %s %s" name (remote_uri commit))
 
+let remove_repositories repos =
+  let names = repos |> List.map fst |> String.concat " " in
+  [Obuilder_spec.run ~network "opam repo remove --all --dont-select %s" names]
+
 let install_tools tools =
   let tools_s = String.concat " " tools in
   [ Obuilder_spec.run ~network ~cache:[ opam_download_cache ] "opam depext -i %s" tools_s ]
@@ -52,6 +56,7 @@ module Op = struct
     Platform.spec system
     |> Spec.add (add_repositories repos)
     |> Spec.add [ run "opam depext -i %s" (String.concat " " pkgs) ]
+    |> Spec.add (remove_repositories repos)
     |> Spec.finish
 
   let build (Name tool_name) job { Key.system; packages; repos } =
