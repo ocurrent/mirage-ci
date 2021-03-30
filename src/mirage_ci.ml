@@ -90,18 +90,18 @@ let main config github mode =
         ("mirage-docs", mirage_docs);
       ]
   in
-  (*let prs =
+  let prs =
     Mirage_ci_pipelines.PR.make github (Repository.current_list_unfetch repos_mirage_main)
-  in*)
+  in
   let engine =
     Current.Engine.create ~config (fun () ->
         Current.all_labelled
-          [ ("mirage 4", mirage_4);(* ("mirage-main-ci", Mirage_ci_pipelines.PR.to_current prs)*) ])
+          [ ("mirage 4", mirage_4); ("mirage-main-ci", Mirage_ci_pipelines.PR.to_current prs) ])
   in
   let site =
     let routes =
-   (*     Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
-    :: Mirage_ci_pipelines.PR.routes prs @*)
+        Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
+    :: Mirage_ci_pipelines.PR.routes prs @
       Current_web.routes engine
     in
     Current_web.Site.(v ~has_role:allow_all) ~name:program_name routes

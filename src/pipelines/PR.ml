@@ -3,29 +3,40 @@ module Git = Current_git
 
 type pr_info = { id : string; label : string; pipeline : unit Current.t }
 
-type t = {
-  mirage_skeleton : pr_info list ref;
-  mirage_dev : pr_info list ref;
-  mirage : pr_info list ref;
-  pipeline : unit Current.t;
-}
+type spec = { name : string; content : pr_info list ref }
+
+type t = { specs : spec list; pipeline : unit Current.t }
 
 type gh_repo = {
-  ci : Github.Api.Commit.t list Current.t;
-  main : Github.Api.Commit.t Current.t;
-  refs : Github.Api.refs Current.t;
+  ci : (Github.Api.Ref.t * Github.Api.Commit.t) list Current.t;
+  branch : Github.Api.Commit.t Current.t;
 }
 
 let repo_refs ~github repo =
   let refs = Github.Api.refs github repo in
   Current.primitive ~info:(Current.component "repository refs") (fun () -> refs) (Current.return ())
 
-let github_setup ~github owner name =
+let github_setup ~branch ~github owner name =
+  let open Current.Syntax in
+  let open Github in
   let gh = { Github.Repo_id.owner; name } in
   let ci_refs = Github.Api.ci_refs ~staleness:(Duration.of_day 90) github gh in
-  let repo_refs = repo_refs ~github gh in
-  let default_branch = Github.Api.head_commit github gh in
-  { ci = ci_refs; refs = repo_refs; main = default_branch }
+  let ci =
+    let+ refs = repo_refs ~github gh and+ ci_refs = ci_refs in
+    let map = Github.Api.all_refs refs in
+    List.filter_map
+      (fun commit ->
+        Api.Ref_map.filter (fun _ commit' -> Api.Commit.(hash commit' = hash commit)) map
+        |> Api.Ref_map.bindings
+        |> function
+        (* TODO: if multiple refs point to the same, check them. *)
+        | (((`PR (_, name) as ref), _) :: _ | ((`Ref name as ref), _) :: _) when name = branch ->
+            Some (ref, commit)
+        | _ -> None)
+      ci_refs
+  in
+  let branch = Github.Api.head_of github gh (`Ref ("refs/heads/"^branch)) in
+  { ci; branch }
 
 let url kind id = Uri.of_string (Fmt.str "https://ci.mirage.io/github/%s/prs/%s" kind id)
 
@@ -81,100 +92,123 @@ end
 let pp_url ~(repo : Github.Repo_id.t) f ref =
   match ref with
   | `Ref ref -> Fmt.pf f "https://github.com/%s/%s/tree/%s" repo.owner repo.name ref
-  | `PR pr -> Fmt.pf f "https://github.com/%s/%s/pull/%d" repo.owner repo.name pr
+  | `PR (pr, _) -> Fmt.pf f "https://github.com/%s/%s/pull/%d" repo.owner repo.name pr
 
-let url_of_commit (commit : Github.Api.Commit.t) (refs : Github.Api.refs) =
+let url_of_commit (commit : Github.Api.Commit.t) (ref : Github.Api.Ref.t) =
   let open Github in
-  let map = Api.all_refs refs in
   let repo = Api.Commit.repo_id commit in
-  let commit_refs =
-    Api.Ref_map.filter (fun _ commit' -> Api.Commit.(hash commit' = hash commit)) map
-  in
-  Api.Ref_map.bindings commit_refs |> function
-  | [] -> ("no refs point to this commit", "")
-  | (ref, _) :: _ -> (Fmt.str "Github: %a" Api.Ref.pp ref, Fmt.to_to_string (pp_url ~repo) ref)
+  (Fmt.str "Github: %a" Api.Ref.pp ref, Fmt.to_to_string (pp_url ~repo) ref)
 
-(* WE PERFORM THREE SETS OF TESTS
+type all_but_mirage = {
+  mirage_dev : Git.Commit_id.t Current.t;
+  mirage_skeleton : Git.Commit_id.t Current.t;
+}
+
+type all_but_mirage_dev = {
+  mirage : Git.Commit_id.t Current.t;
+  mirage_skeleton : Git.Commit_id.t Current.t;
+}
+
+type all_but_mirage_skeleton = {
+  mirage : Git.Commit_id.t Current.t;
+  mirage_dev : Git.Commit_id.t Current.t;
+}
+
+type kind =
+  | Mirage of all_but_mirage
+  | Mirage_dev of all_but_mirage_dev
+  | Mirage_skeleton of all_but_mirage_skeleton
+
+let id_of gh_commit = Current.map Github.Api.Commit.id gh_commit
+
+let perform_ci ~name ~repos ~kind ci_refs =
+  let perform_test =
+    match kind with
+    | Mirage { mirage_dev; mirage_skeleton } ->
+        fun ~platform commit_mirage ->
+          let mirage = id_of commit_mirage in
+          perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos name commit_mirage
+    | Mirage_dev { mirage; mirage_skeleton } ->
+        fun ~platform commit_mirage_dev ->
+          let mirage_dev = id_of commit_mirage_dev in
+          perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos name commit_mirage_dev
+    | Mirage_skeleton { mirage_dev; mirage } ->
+        fun ~platform commit_mirage_skeleton ->
+          let mirage_skeleton = id_of commit_mirage_skeleton in
+          perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos name
+            commit_mirage_skeleton
+  in
+  ci_refs
+  |> Current.map (fun commits ->
+         List.map (fun (ref, commit) -> (commit, url_of_commit commit ref)) commits)
+  |> Current.list_map_url
+       (module CommitUrl)
+       (fun commit ->
+         let commit = Current.map fst commit in
+         Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
+         |> List.map (fun platform ->
+                perform_test ~platform commit
+                |> Current.collapse
+                     ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
+                     ~value:"mirage-skeleton" ~input:commit)
+         |> Current.list_seq)
+
+module Test = struct
+  type t = { name : string; kind : kind; input : gh_repo }
+
+  let v name kind input = { name; kind; input }
+end
+
+(* WE PERFORM TWO SETS OF TESTS
 - mirage skeleton 'master' / mirage '3'
-- mirage skeleton 'master' / mirage released
 - mirage skeleton 'mirage-dev' / mirage 'master' / mirage-dev 'master'  *)
 let make github repos =
-  let id_of gh_commit = Current.map Github.Api.Commit.id gh_commit in
-  let gh_mirage_skeleton = github_setup ~github "mirage" "mirage-skeleton" in
-  let gh_mirage = github_setup ~github "mirage" "mirage" in
-  let gh_mirage_dev = github_setup ~github "mirage" "mirage-dev" in
-  let mirage_skeleton = id_of gh_mirage_skeleton.main in
-  let mirage = id_of gh_mirage.main in
-  let mirage_dev = id_of gh_mirage_dev.main in
-  let mirage_skeleton_prs = ref [] in
-  let mirage_dev_prs = ref [] in
-  let mirage_prs = ref [] in
-  let pipeline =
-    Current.with_context mirage_skeleton @@ fun () ->
-    Current.with_context mirage @@ fun () ->
-    Current.with_context mirage_dev @@ fun () ->
-    let mirage_skeleton =
-      gh_mirage_skeleton.ci
-      |> Current.pair gh_mirage_skeleton.refs
-      |> Current.map (fun (refs, commits) -> List.map (fun c -> (c, url_of_commit c refs)) commits)
-      |> Current.list_map_url
-           (module CommitUrl)
-           (fun commit ->
-             let commit = Current.map fst commit in
-             let mirage_skeleton = id_of commit in
-             Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
-             |> List.map (fun platform ->
-                    perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos
-                      "mirage-skeleton" commit
-                    |> Current.collapse
-                         ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
-                         ~value:"mirage-skeleton" ~input:commit)
-             |> Current.list_seq)
-      |> update mirage_skeleton_prs
-    and mirage_dev =
-      gh_mirage_dev.ci |> Current.pair gh_mirage_dev.refs
-      |> Current.map (fun (refs, commits) -> List.map (fun c -> (c, url_of_commit c refs)) commits)
-      |> Current.list_map_url
-           (module CommitUrl)
-           (fun gh_mirage_dev ->
-             let gh_mirage_dev = Current.map fst gh_mirage_dev in
-             let mirage_dev = id_of gh_mirage_dev in
-             Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
-             |> List.map (fun platform ->
-                    perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage-dev"
-                      gh_mirage_dev
-                    |> Current.collapse
-                         ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
-                         ~value:"mirage-dev" ~input:gh_mirage_dev)
-             |> Current.list_seq)
-      |> update mirage_dev_prs
-    and mirage =
-      gh_mirage.ci |> Current.pair gh_mirage.refs
-      |> Current.map (fun (refs, commits) -> List.map (fun c -> (c, url_of_commit c refs)) commits)
-      |> Current.list_map_url
-           (module CommitUrl)
-           (fun gh_mirage ->
-             let gh_mirage = Current.map fst gh_mirage in
-             let mirage = id_of gh_mirage in
-             Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
-             |> List.map (fun platform ->
-                    perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos "mirage"
-                      gh_mirage
-                    |> Current.collapse
-                         ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
-                         ~value:"mirage" ~input:gh_mirage)
-             |> Current.list_seq)
-      |> update mirage_prs
-    in
-    Current.all_labelled
-      [ ("mirage-skeleton", mirage_skeleton); ("mirage-dev", mirage_dev); ("mirage", mirage) ]
+  let gh_mirage_skeleton_master =
+    github_setup ~branch:"master" ~github "mirage" "mirage-skeleton"
   in
-  {
-    pipeline;
-    mirage_skeleton = mirage_skeleton_prs;
-    mirage_dev = mirage_dev_prs;
-    mirage = mirage_prs;
-  }
+  let gh_mirage_skeleton_dev =
+    github_setup ~branch:"mirage-dev" ~github "mirage" "mirage-skeleton"
+  in
+  let gh_mirage_master = github_setup ~branch:"master" ~github "mirage" "mirage" in
+  let gh_mirage_3 = github_setup ~branch:"3" ~github "mirage" "mirage" in
+  let gh_mirage_dev = github_setup ~branch:"master" ~github "mirage" "mirage-dev" in
+  let mirage_skeleton_master = id_of gh_mirage_skeleton_master.branch in
+  let mirage_skeleton_dev = id_of gh_mirage_skeleton_dev.branch in
+  let mirage_master = id_of gh_mirage_master.branch in
+  let mirage_3 = id_of gh_mirage_3.branch in
+  let mirage_dev = id_of gh_mirage_dev.branch in
+  let with_context f =
+    Current.with_context mirage_skeleton_master @@ fun () ->
+    Current.with_context mirage_skeleton_dev @@ fun () ->
+    Current.with_context mirage_master @@ fun () ->
+    Current.with_context mirage_3 @@ fun () -> Current.with_context mirage_dev f
+  in
+  let pipeline =
+    Test.
+      [
+        v "skeleton-master"
+          (Mirage_skeleton { mirage = mirage_3; mirage_dev })
+          gh_mirage_skeleton_master;
+        v "skeleton-dev"
+          (Mirage_skeleton { mirage = mirage_master; mirage_dev })
+          gh_mirage_skeleton_dev;
+        v "mirage-master"
+          (Mirage { mirage_skeleton = mirage_skeleton_dev; mirage_dev })
+          gh_mirage_master;
+        v "mirage-3" (Mirage { mirage_skeleton = mirage_skeleton_master; mirage_dev }) gh_mirage_3;
+        v "mirage-dev"
+          (Mirage_dev { mirage_skeleton = mirage_skeleton_master; mirage = mirage_master })
+          gh_mirage_dev;
+      ]
+    |> List.map (fun Test.{ name; kind; input } ->
+           let prs = ref [] in
+           ( name,
+             prs,
+             with_context @@ fun () -> perform_ci ~name ~repos ~kind input.ci |> update prs ))
+  in
+  let specs = List.map (fun (name, content, _) -> { name; content }) pipeline in
+  let pipeline = (List.map (fun (a, _, b) -> (a, b))) pipeline |> Current.all_labelled in
+  { pipeline; specs }
 
 let to_current t = t.pipeline
 
@@ -240,9 +274,6 @@ let route skeleton_prs pr_id =
   r pr
 
 let routes t =
-  Routes.
-    [
-      (s "github" / s "mirage-skeleton" / s "prs" / str /? nil) @--> route t.mirage_skeleton;
-      (s "github" / s "mirage-dev" / s "prs" / str /? nil) @--> route t.mirage_dev;
-      (s "github" / s "mirage" / s "prs" / str /? nil) @--> route t.mirage;
-    ]
+  t.specs
+  |> List.map @@ fun { name; content } ->
+     Routes.((s "github" / s name / s "prs" / str /? nil) @--> route content)
