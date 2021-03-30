@@ -72,8 +72,9 @@ module Op = struct
     with_checkouts ~job repos_git @@ fun dirs ->
     let constraints = [ ("ocaml", Fmt.to_to_string Platform.pp_exact_ocaml system.ocaml) ] in
     let opam_repos_folders =
-      List.combine dirs repos_git
-      |> List.map (fun (dir, repo) -> (Fpath.to_string dir, Current_git.Commit.hash repo))
+      List.combine dirs repos
+      |> List.map (fun (dir, (name, repo)) ->
+             (name, Fpath.to_string dir, Current_git.Commit.hash repo))
     in
     let pkgs = "ocaml" :: packages in
     let request =
@@ -128,8 +129,9 @@ let v ~system ~repos ~packages =
      |> Current.Primitive.map_result
           (Result.map (fun Op.Value.{ resolutions; repos = repos_raw } ->
                let repos =
-                 List.combine repos repos_raw
-                 |> List.map (fun ((name, commit), (_, hash)) ->
+                 repos_raw
+                 |> List.map (fun (name, hash) ->
+                        let commit = List.assoc name repos in
                         let id = Git.Commit.id commit in
                         ( name,
                           Git.Commit_id.v ~repo:(Git.Commit_id.repo id)

@@ -3,7 +3,7 @@ module Log = Solver_api.Solver.Log
 module Store = Git_unix.Store
 
 let open_store path =
-  Git_unix.Store.v ~dotgit:path path >|= function
+  Git_unix.Store.v path >|= function
   | Ok x -> x
   | Error e -> Fmt.failwith "Failed to open opam-repository: %a" Store.pp_error e
 

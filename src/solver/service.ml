@@ -10,11 +10,7 @@ module Epoch : sig
 
   (* An Epoch handles all requests for a single opam-repository HEAD commit. *)
 
-  val create :
-    n_workers:int ->
-    create_worker:(unit -> Lwt_process.process) ->
-    unit ->
-    t Lwt.t
+  val create : n_workers:int -> create_worker:(unit -> Lwt_process.process) -> unit -> t Lwt.t
 
   val handle : log:Solver_api.Solver.Log.t -> Worker.Solve_request.t -> t -> Selection.t list Lwt.t
 
@@ -98,7 +94,7 @@ end
 (* Handle a request by distributing it among the worker processes and then aggregating their responses. *)
 let handle t ~log (request : Worker.Solve_request.t) =
   Epoch_lock.with_epoch t
-    (List.map snd request.opam_repos_folders |> String.concat "-")
+    (List.map (fun (_, _, x) -> x) request.opam_repos_folders |> String.concat "-")
     (Epoch.handle ~log request)
 
 let v ~n_workers ~create_worker =

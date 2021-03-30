@@ -8,8 +8,6 @@ let env (vars : Worker.Vars.t) =
   Opam_0install.Dir_context.std_env ~arch:vars.arch ~os:vars.os
     ~os_distribution:vars.os_distribution ~os_version:vars.os_version ~os_family:vars.os_family ()
 
-let get_names = OpamFormula.fold_left (fun a (name, _) -> name :: a) []
-
 let solve ~packages ~constraints ~root_pkgs (vars : Worker.Vars.t) =
   let context = Git_context.create () ~packages ~env:(env vars) ~constraints in
   let t0 = Unix.gettimeofday () in
@@ -28,18 +26,18 @@ let find_oldest_commits ~all (packages : OpamPackage.t list) =
   List.iter
     (fun package ->
       let open OpamPackage in
-      let (folder, commit), _ =
+      let (name, folder, commit), _ =
         all |> Name.Map.find (name package) |> Version.Map.find (version package)
       in
       match StringMap.find_opt folder !store_map with
-      | None -> store_map := StringMap.add folder (commit, [ package ]) !store_map
-      | Some (_, v) -> store_map := StringMap.add folder (commit, package :: v) !store_map)
+      | None -> store_map := StringMap.add folder (name, commit, [ package ]) !store_map
+      | Some (_, _, v) -> store_map := StringMap.add folder (name, commit, package :: v) !store_map)
     packages;
   !store_map |> StringMap.bindings
-  |> Lwt_list.map_p (fun (folder, (commit, packages)) ->
+  |> Lwt_list.map_p (fun (folder, (name, commit, packages)) ->
          Opam_repository.oldest_commit_with ~from:(Store.Hash.of_hex commit) (Fpath.v folder)
            packages
-         >|= fun commit -> (folder, commit))
+         >|= fun commit -> (name, commit))
 
 let main () =
   let rec aux () =
@@ -53,18 +51,18 @@ let main () =
         in
         let { Worker.Solve_request.opam_repos_folders; pkgs; constraints; platforms } = request in
         Lwt_list.map_p
-          (fun (folder, commit) ->
+          (fun (name, folder, commit) ->
             Opam_repository.open_store (Fpath.v folder) >>= fun store ->
             Git_context.read_packages store (Store.Hash.of_hex commit) >|= fun res ->
-            ((folder, commit), res))
+            ((name, folder, commit), res))
           opam_repos_folders
         >>= fun packages ->
         let all_packages =
           (* TODO: check the priority rules *)
           List.fold_left
-            (fun acc (store, packages) ->
+            (fun acc (repo_name, packages) ->
               packages
-              |> OpamPackage.Name.Map.map (OpamPackage.Version.Map.map (fun x -> (store, x)))
+              |> OpamPackage.Name.Map.map (OpamPackage.Version.Map.map (fun x -> (repo_name, x)))
               |> OpamPackage.Name.Map.union (OpamPackage.Version.Map.union (fun a _ -> a)) acc)
             OpamPackage.Name.Map.empty packages
         in

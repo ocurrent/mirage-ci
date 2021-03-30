@@ -51,12 +51,7 @@ module Op = struct
     let open Obuilder_spec in
     Platform.spec system
     |> Spec.add (add_repositories repos)
-    |> Spec.add
-         [
-           run "opam repo remove default";
-           run "opam repo add local /repo";
-           run "opam depext -i %s" (String.concat " " pkgs);
-         ]
+    |> Spec.add [ run "opam depext -i %s" (String.concat " " pkgs) ]
     |> Spec.finish
 
   let build (Name tool_name) job { Key.system; packages; repos } =
