@@ -17,6 +17,11 @@ let repo_refs ~github repo =
   Current.primitive ~info:(Current.component "repository refs") (fun () -> refs) (Current.return ())
 
 let github_setup ~branch ~github owner name =
+  let ref_filter = function
+    | `PR (_, name) when name = branch -> true
+    | `Ref ref when ref = "refs/heads/" ^ branch -> true
+    | _ -> false
+  in
   let open Current.Syntax in
   let open Github in
   let gh = { Github.Repo_id.owner; name } in
@@ -28,14 +33,10 @@ let github_setup ~branch ~github owner name =
       (fun commit ->
         Api.Ref_map.filter (fun _ commit' -> Api.Commit.(hash commit' = hash commit)) map
         |> Api.Ref_map.bindings
-        |> function
-        (* TODO: if multiple refs point to the same, check them. *)
-        | (((`PR (_, name) as ref), _) :: _ | ((`Ref name as ref), _) :: _) when name = branch ->
-            Some (ref, commit)
-        | _ -> None)
+        |> List.find_map (fun (ref, _) -> if ref_filter ref then Some (ref, commit) else None))
       ci_refs
   in
-  let branch = Github.Api.head_of github gh (`Ref ("refs/heads/"^branch)) in
+  let branch = Github.Api.head_of github gh (`Ref ("refs/heads/" ^ branch)) in
   { ci; branch }
 
 let url kind id = Uri.of_string (Fmt.str "https://ci.mirage.io/github/%s/prs/%s" kind id)
