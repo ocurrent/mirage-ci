@@ -48,11 +48,14 @@ let github_status_of_state kind id status =
   | Error (`Active _) -> Github.Api.Status.v ~url `Pending
   | Error (`Msg m) -> Github.Api.Status.v ~url `Failure ~description:m
 
-let perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos kind gh_commit =
+let perform_test ?mirage_dev ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit =
   let open Current.Syntax in
   let repos =
-    let+ repos = repos and+ mirage_dev = mirage_dev in
-    ("mirage-dev", mirage_dev) :: repos
+    match mirage_dev with
+    | None -> repos
+    | Some mirage_dev ->
+        let+ repos = repos and+ mirage_dev = mirage_dev in
+        ("mirage-dev", mirage_dev) :: repos
   in
   let* gh_commit' = gh_commit in
   let id =
@@ -101,7 +104,7 @@ let url_of_commit (commit : Github.Api.Commit.t) (ref : Github.Api.Ref.t) =
   (Fmt.str "Github: %a" Api.Ref.pp ref, Fmt.to_to_string (pp_url ~repo) ref)
 
 type all_but_mirage = {
-  mirage_dev : Git.Commit_id.t Current.t;
+  mirage_dev : Git.Commit_id.t Current.t option;
   mirage_skeleton : Git.Commit_id.t Current.t;
 }
 
@@ -112,7 +115,7 @@ type all_but_mirage_dev = {
 
 type all_but_mirage_skeleton = {
   mirage : Git.Commit_id.t Current.t;
-  mirage_dev : Git.Commit_id.t Current.t;
+  mirage_dev : Git.Commit_id.t Current.t option;
 }
 
 type kind =
@@ -128,7 +131,7 @@ let perform_ci ~name ~repos ~kind ci_refs =
     | Mirage { mirage_dev; mirage_skeleton } ->
         fun ~platform commit_mirage ->
           let mirage = id_of commit_mirage in
-          perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos name commit_mirage
+          perform_test ~platform ?mirage_dev ~mirage_skeleton ~mirage ~repos name commit_mirage
     | Mirage_dev { mirage; mirage_skeleton } ->
         fun ~platform commit_mirage_dev ->
           let mirage_dev = id_of commit_mirage_dev in
@@ -136,7 +139,7 @@ let perform_ci ~name ~repos ~kind ci_refs =
     | Mirage_skeleton { mirage_dev; mirage } ->
         fun ~platform commit_mirage_skeleton ->
           let mirage_skeleton = id_of commit_mirage_skeleton in
-          perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos name
+          perform_test ~platform ?mirage_dev ~mirage_skeleton ~mirage ~repos name
             commit_mirage_skeleton
   in
   ci_refs
@@ -188,15 +191,17 @@ let make github repos =
     Test.
       [
         v "skeleton-master"
-          (Mirage_skeleton { mirage = mirage_3; mirage_dev })
+          (Mirage_skeleton { mirage = mirage_3; mirage_dev = None })
           gh_mirage_skeleton_master;
         v "skeleton-dev"
-          (Mirage_skeleton { mirage = mirage_master; mirage_dev })
+          (Mirage_skeleton { mirage = mirage_master; mirage_dev = Some mirage_dev })
           gh_mirage_skeleton_dev;
         v "mirage-master"
-          (Mirage { mirage_skeleton = mirage_skeleton_dev; mirage_dev })
+          (Mirage { mirage_skeleton = mirage_skeleton_dev; mirage_dev = Some mirage_dev })
           gh_mirage_master;
-        v "mirage-3" (Mirage { mirage_skeleton = mirage_skeleton_master; mirage_dev }) gh_mirage_3;
+        v "mirage-3"
+          (Mirage { mirage_skeleton = mirage_skeleton_master; mirage_dev = None })
+          gh_mirage_3;
         v "mirage-dev"
           (Mirage_dev { mirage_skeleton = mirage_skeleton_master; mirage = mirage_master })
           gh_mirage_dev;
