@@ -146,14 +146,17 @@ let id_of gh_commit = Current.map Github.Api.Commit.id gh_commit
 let resolve friends repo =
   let open Current.Syntax in
   let+ friends = friends and+ refs = repo.all and+ branch = repo.branch in
+  Printf.printf "Resolving for %s/%s\n" repo.owner repo.name;
   match
     List.find_map
       (fun (owner, name, number) ->
-        if repo.owner = owner && repo.name == name then
+        if repo.owner = owner && repo.name = name then
+          (Printf.printf "looking for %d\n" number ;
           List.find_map
             (function
-              | `PR Github.Api.Ref.{ id; _ }, value when id = number -> Some value | _ -> None)
-            refs
+            | `PR Github.Api.Ref.{ id; _ }, value when id = number -> Printf.printf "%s %s >  %d!!\n" owner name id ; Some value 
+            | _ -> None)
+            refs)
         else None)
       friends
   with
