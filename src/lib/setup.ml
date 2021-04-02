@@ -14,7 +14,7 @@ let add_repositories =
 
 let remove_repositories repos =
   let names = repos |> List.map fst |> String.concat " " in
-  [Obuilder_spec.run ~network "opam repo remove --all --dont-select %s" names]
+  [ Obuilder_spec.run ~network "opam repo remove --all --dont-select %s" names ]
 
 let install_tools tools =
   let tools_s = String.concat " " tools in
@@ -61,6 +61,7 @@ module Op = struct
 
   let build (Name tool_name) job { Key.system; packages; repos } =
     let open Lwt.Syntax in
+    let open Rresult in
     let open Fpath in
     let* () = Current.Job.start ~level:Harmless job in
     Current.Process.with_tmpdir @@ fun tmpdir ->
@@ -71,16 +72,20 @@ module Op = struct
     let dockerfile =
       Obuilder_spec.Docker.dockerfile_of_spec ~buildkit:true (spec ~system ~pkgs ~repos)
     in
+    let iidfile = tmpdir / "iidfile" in
     Bos.OS.File.write (tmpdir / "Dockerfile") dockerfile |> Result.get_ok;
+    Bos.OS.File.write iidfile dockerfile |> Result.get_ok;
     (* use docker build *)
     let tool_name = Astring.String.map (function ' ' -> '-' | c -> c) tool_name in
     let tag = Fmt.str "%s-%a" tool_name Platform.pp_system system in
     let cmd =
       Current_docker.Raw.Cmd.docker ~docker_context:None
-        [ "build"; "-t"; tag; "--"; to_string tmpdir ]
+        [ "build"; "--iidfile"; to_string iidfile; "-t"; tag; "--"; to_string tmpdir ]
     in
     let+ res = Current.Process.exec ~cancellable:true ~job cmd in
-    Result.map (fun () -> Current_docker.Default.Image.of_hash tag) res
+    res >>= fun () ->
+    Bos.OS.File.read iidfile >>| fun iid -> 
+    Current_docker.Default.Image.of_hash iid
 end
 
 module SetupCache = Current_cache.Make (Op)
