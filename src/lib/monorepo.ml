@@ -29,10 +29,11 @@ let lock ~repos ~opam t =
     let open Dockerfile in
     from (Docker.Image.hash t)
     @@ user "opam"
+    @@ add_repos repos 
     @@ copy ~chown:"opam" ~src:[ "." ] ~dst:"/src" ()
     @@ workdir "/src"
     @@ run "echo '%s' >> monorepo.opam" (Fmt.str "%a" pp_wrap (Opamfile.marshal opam))
-    @@ add_repos repos @@ run "opam monorepo lock -l monorepo.opam.locked"
+    @@ run "opam monorepo lock -l monorepo.opam.locked"
     |> fun dockerfile -> `Contents dockerfile
   in
   let image = Docker.build ~dockerfile ~label:"opam monorepo lock" ~pool ~pull:false `No_context in
