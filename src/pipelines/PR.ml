@@ -249,7 +249,7 @@ let make github repos =
           (Mirage { mirage_skeleton = gh_mirage_skeleton_master; mirage_dev = None })
           gh_mirage_3;
         v "mirage-dev"
-          (Mirage_dev { mirage_skeleton = gh_mirage_skeleton_master; mirage = gh_mirage_master })
+          (Mirage_dev { mirage_skeleton = gh_mirage_skeleton_dev; mirage = gh_mirage_master })
           gh_mirage_dev;
       ]
     |> List.map (fun Test.{ name; kind; input } ->
