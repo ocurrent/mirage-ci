@@ -32,7 +32,7 @@ let lock ~repos ~opam t =
     @@ copy ~chown:"opam" ~src:[ "." ] ~dst:"/src" ()
     @@ workdir "/src"
     @@ run "echo '%s' >> monorepo.opam" (Fmt.str "%a" pp_wrap (Opamfile.marshal opam))
-    @@ add_repos repos @@ run "opam monorepo lock"
+    @@ add_repos repos @@ run "opam monorepo lock -l monorepo.opam.locked"
     |> fun dockerfile -> `Contents dockerfile
   in
   let image = Docker.build ~dockerfile ~label:"opam monorepo lock" ~pool ~pull:false `No_context in
@@ -76,9 +76,7 @@ let spec ~base ~lock () =
          run "opam pin -n remove monorepo";
          (* setup lockfile *)
          run "cp monorepo.opam monorepo.opam.locked";
-         run "echo '(name monorepo)' >> dune-project";
-         (* opam monorepo uses the dune project to find which lockfile to pull*)
-         run ~network:Setup.network "opam exec -- opam monorepo pull -y";
+         run ~network:Setup.network "opam exec -- opam monorepo pull -y -l  monorepo.opam.locked";
        ]
 
 (********************************************)
