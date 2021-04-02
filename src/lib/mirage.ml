@@ -84,10 +84,11 @@ let build ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
          [
            copy [ "./" ^ unikernel ^ "/config.ml" ] ~dst:("/src/"^unikernel^"/");
            workdir ("/src/" ^ unikernel);
+           run "sudo chown -R opam:opam .";
            run "opam exec -- mirage configure -t %s" target;
            run ~cache:[ Setup.opam_download_cache ] ~network:Setup.network
              "opam exec -- make depends";
-           copy [ "./" ^ unikernel ^ "/" ] ~dst:("/src/"^unikernel^"/");
+           copy [ "./" ^ unikernel ^ "/" ] ~dst:("/src/"^unikernel);
            run "opam exec -- mirage build";
          ]
   in
