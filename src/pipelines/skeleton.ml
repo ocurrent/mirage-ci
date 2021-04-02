@@ -70,7 +70,7 @@ let run_test_mirage_main { unikernel; platform; target } configuration =
     |> Spec.add
          [ Obuilder_spec.run ~network:Setup.network "opam pin -n -y %s" (Setup.remote_uri mirage) ]
   in
-  Mirage.build ~platform ~cmd:"mirage build" ~base ~project:c.skeleton ~unikernel ~target ()
+  Mirage.build ~platform ~base ~project:c.skeleton ~unikernel ~target ()
   |> Current.collapse
        ~key:("Unikernel " ^ unikernel ^ "@" ^ target)
        ~value:("main-" ^ Platform.platform_id platform)

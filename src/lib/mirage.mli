@@ -15,7 +15,6 @@ val configure :
 the generated opam file. It runs on the host machine. *)
 
 val build :
-  ?cmd:string ->
   platform:Platform.t ->
   base:Spec.t Current.t ->
   project:Current_git.Commit_id.t Current.t ->
@@ -24,5 +23,4 @@ val build :
   unit ->
   unit Current.t
 (** Run the full mirage build process using ocluster. It includes the installation of mirage, the 
-configuration step and the build step. The build command can be customized with the [cmd] parameter. 
-By default it's `dune build` (mirage 4). *)
+configuration step and the build step. *)

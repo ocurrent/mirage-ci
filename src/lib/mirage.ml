@@ -31,7 +31,7 @@ module ConfigureOp = struct
   let cmd ~unikernel ~target =
     Fmt.str
       "cp -R /src/ /home/opam/src/ && cd /home/opam/src/%s && mirage configure -t %s && find \
-       /home/opam/src/%s -maxdepth 1 -type f -not -name \"*install.opam\" -name \"*.opam\" -exec \
+       /home/opam/src/%s/mirage/ -maxdepth 1 -type f -not -name \"*install.opam\" -name \"*.opam\" -exec \
        cat {} +"
       unikernel target unikernel
 
@@ -61,7 +61,9 @@ module ConfigureOp = struct
             ]
         in
         let+ result = Current.Process.check_output ~cancellable:true ~job cmd in
-        Result.map (fun opamfile -> OpamParser.string opamfile "monorepo.opam") result
+        Result.map (fun opamfile -> 
+          Current.Job.log job "Configured opam file:\n%s" opamfile;
+          OpamParser.string opamfile "monorepo.opam") result
     | Error e -> Lwt.return_error e
 end
 
@@ -72,7 +74,7 @@ let configure ~project ~unikernel ~target t =
   |> let> project = project and> t = t in
      ConfigureCache.get No_context { ConfigureOp.Key.tool = t; project; unikernel; target }
 
-let build ?(cmd = "dune build") ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
+let build ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
   let spec =
     let+ base = base in
     let open Obuilder_spec in
@@ -85,7 +87,7 @@ let build ?(cmd = "dune build") ~(platform : Platform.t) ~base ~project ~unikern
            run "opam exec -- mirage configure -t %s" target;
            run ~cache:[ Setup.opam_download_cache ] ~network:Setup.network
              "opam exec -- make depends";
-           run "opam exec -- %s" cmd;
+           run "opam exec -- mirage build";
          ]
   in
   let label = unikernel ^ "@" ^ target in
