@@ -79,14 +79,15 @@ let build ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
     let+ base = base in
     let open Obuilder_spec in
     base
-    |> Spec.add (Setup.install_tools [ "dune"; "mirage"; "opam-monorepo"; "ocamlfind.1.8.1" ])
+    |> Spec.add (Setup.install_tools [ "dune"; "mirage"; "opam-monorepo" ])
     |> Spec.add
          [
-           copy [ "." ] ~dst:"/src/";
+           copy [ "./" ^ unikernel ^ "/config.ml" ] ~dst:("/src/"^unikernel^"/");
            workdir ("/src/" ^ unikernel);
            run "opam exec -- mirage configure -t %s" target;
            run ~cache:[ Setup.opam_download_cache ] ~network:Setup.network
              "opam exec -- make depends";
+           copy [ "./" ^ unikernel ^ "/" ] ~dst:("/src/"^unikernel^"/");
            run "opam exec -- mirage build";
          ]
   in
