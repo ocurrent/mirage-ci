@@ -2,7 +2,7 @@ type ocaml_version = V4_10 | V4_11
 
 let pp_ocaml f = function V4_10 -> Fmt.pf f "4.10" | V4_11 -> Fmt.pf f "4.11"
 
-let pp_exact_ocaml f = function V4_10 -> Fmt.pf f "4.10.3" | V4_11 -> Fmt.pf f "4.11.3"
+let pp_exact_ocaml f = function V4_10 -> Fmt.pf f "4.10.2" | V4_11 -> Fmt.pf f "4.11.2"
 
 type os = Debian | Ubuntu | Fedora
 
