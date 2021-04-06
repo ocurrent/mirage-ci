@@ -59,6 +59,12 @@ module Op = struct
     |> Spec.add (remove_repositories repos)
     |> Spec.finish
 
+  module StringSet = Set.Make (String)
+
+  let blacklist =
+    StringSet.of_list
+      [ "ocaml"; "ocaml-variants"; "base-unix"; "base-threads"; "base-bytes"; "base-bigarray" ]
+
   let build (Name tool_name) job { Key.system; packages; repos } =
     let open Lwt.Syntax in
     let open Rresult in
@@ -67,7 +73,10 @@ module Op = struct
     Current.Process.with_tmpdir @@ fun tmpdir ->
     (* setup the context *)
     let pkgs =
-      List.map (fun (pkg : Current_solver.resolution) -> pkg.name ^ "." ^ pkg.version) packages
+      packages
+      |> List.filter (fun (pkg : Current_solver.resolution) ->
+             not (StringSet.mem pkg.name blacklist))
+      |> List.map (fun (pkg : Current_solver.resolution) -> pkg.name ^ "." ^ pkg.version)
     in
     let dockerfile =
       Obuilder_spec.Docker.dockerfile_of_spec ~buildkit:true (spec ~system ~pkgs ~repos)
@@ -84,8 +93,7 @@ module Op = struct
     in
     let+ res = Current.Process.exec ~cancellable:true ~job cmd in
     res >>= fun () ->
-    Bos.OS.File.read iidfile >>| fun iid -> 
-    Current_docker.Default.Image.of_hash iid
+    Bos.OS.File.read iidfile >>| fun iid -> Current_docker.Default.Image.of_hash iid
 end
 
 module SetupCache = Current_cache.Make (Op)
