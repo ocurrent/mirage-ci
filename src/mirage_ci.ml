@@ -53,42 +53,45 @@ let main config github mode =
       ~repos:repos_unfetched roots
   in
   let mirage_4 =
-    Current.with_context repos @@ fun () ->
-    let mirage_skeleton_arm64 =
-      Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_arm64 ~targets:[ "unix"; "hvt" ]
-        ~monorepo ~repos repo_mirage_skeleton
-    in
-    let mirage_skeleton_amd64 =
-      Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_amd64 ~targets:[ "xen"; "spt" ]
-        ~monorepo ~repos repo_mirage_skeleton
-    in
-    let mirage_released =
-      Mirage_ci_pipelines.Monorepo.released ~platform:Platform.platform_arm64 ~roots
-        ~repos:repos_unfetched ~lock:monorepo_lock
-    in
-    let mirage_edge =
-      Mirage_ci_pipelines.Monorepo.mirage_edge ~platform:Platform.platform_arm64
-        ~remote_pull:Config.v.remote_pull ~remote_push:Config.v.remote_push ~roots
-        ~repos:repos_unfetched ~lock:monorepo_lock
-    in
-    let universe_edge =
-      Mirage_ci_pipelines.Monorepo.universe_edge ~platform:Platform.platform_arm64
-        ~remote_pull:Config.v.remote_pull ~remote_push:Config.v.remote_push ~roots
-        ~repos:repos_unfetched ~lock:monorepo_lock
-    in
-    let mirage_docs =
-      Mirage_ci_pipelines.Monorepo.docs ~system:Platform.system ~repos:repos_unfetched
-        ~lock:monorepo_lock
-    in
-    Current.all_labelled
-      [
-        ("mirage-skeleton-arm64", mirage_skeleton_arm64);
-        ("mirage-skeleton-amd64", mirage_skeleton_amd64);
-        ("mirage-released", mirage_released);
-        ("mirage-edge", mirage_edge);
-        ("universe-edge", universe_edge);
-        ("mirage-docs", mirage_docs);
-      ]
+    if Config.v.ci.mirage_4 then 
+      Current.with_context repos @@ fun () ->
+      let mirage_skeleton_arm64 =
+        Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_arm64 ~targets:[ "unix"; "hvt" ]
+          ~monorepo ~repos repo_mirage_skeleton
+      in
+      let mirage_skeleton_amd64 =
+        Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_amd64 ~targets:[ "xen"; "spt" ]
+          ~monorepo ~repos repo_mirage_skeleton
+      in
+      let mirage_released =
+        Mirage_ci_pipelines.Monorepo.released ~platform:Platform.platform_arm64 ~roots
+          ~repos:repos_unfetched ~lock:monorepo_lock
+      in
+      let mirage_edge =
+        Mirage_ci_pipelines.Monorepo.mirage_edge ~platform:Platform.platform_arm64
+          ~remote_pull:Config.v.remote_pull ~remote_push:Config.v.remote_push ~roots
+          ~repos:repos_unfetched ~lock:monorepo_lock
+      in
+      let universe_edge =
+        Mirage_ci_pipelines.Monorepo.universe_edge ~platform:Platform.platform_arm64
+          ~remote_pull:Config.v.remote_pull ~remote_push:Config.v.remote_push ~roots
+          ~repos:repos_unfetched ~lock:monorepo_lock
+      in
+      let mirage_docs =
+        Mirage_ci_pipelines.Monorepo.docs ~system:Platform.system ~repos:repos_unfetched
+          ~lock:monorepo_lock
+      in
+      Current.all_labelled
+        [
+          ("mirage-skeleton-arm64", mirage_skeleton_arm64);
+          ("mirage-skeleton-amd64", mirage_skeleton_amd64);
+          ("mirage-released", mirage_released);
+          ("mirage-edge", mirage_edge);
+          ("universe-edge", universe_edge);
+          ("mirage-docs", mirage_docs);
+        ]
+    else
+      Current.return ~label:"disabled" ()
   in
   let prs =
     Mirage_ci_pipelines.PR.make github (Repository.current_list_unfetch repos_mirage_main)

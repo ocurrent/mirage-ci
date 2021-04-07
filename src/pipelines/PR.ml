@@ -75,7 +75,8 @@ let github_status_of_state kind id status =
   | Error (`Active _) -> Github.Api.Status.v ~url `Pending
   | Error (`Msg m) -> Github.Api.Status.v ~url `Failure ~description:m
 
-let perform_test ?mirage_dev ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit =
+let perform_test ?mirage_dev ~commit_status ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit
+    =
   let open Current.Syntax in
   let repos =
     match mirage_dev with
@@ -95,7 +96,7 @@ let perform_test ?mirage_dev ~platform ~mirage_skeleton ~mirage ~repos kind gh_c
     Current.return { pipeline; label = Fmt.str "%a" Github.Api.Commit.pp gh_commit'; id }
   in
   let+ _ =
-    match Mirage_ci_lib.Config.v.enable_commit_status with
+    match commit_status with
     | false -> pipeline
     | true ->
         pipeline |> Current.state ~hidden:true
@@ -150,13 +151,15 @@ let resolve friends repo =
   match
     List.find_map
       (fun (owner, name, number) ->
-        if repo.owner = owner && repo.name = name then
-          (Printf.printf "looking for %d\n" number ;
+        if repo.owner = owner && repo.name = name then (
+          Printf.printf "looking for %d\n" number;
           List.find_map
             (function
-            | `PR Github.Api.Ref.{ id; _ }, value when id = number -> Printf.printf "%s %s >  %d!!\n" owner name id ; Some value 
-            | _ -> None)
-            refs)
+              | `PR Github.Api.Ref.{ id; _ }, value when id = number ->
+                  Printf.printf "%s %s >  %d!!\n" owner name id;
+                  Some value
+              | _ -> None)
+            refs )
         else None)
       friends
   with
@@ -164,6 +167,7 @@ let resolve friends repo =
   | None -> branch |> Github.Api.Commit.id
 
 let perform_ci ~name ~repos ~kind ci_refs =
+  let commit_status = List.mem name Mirage_ci_lib.Config.v.ci.main.commit_status in
   let perform_test ~ref =
     let friends = Current.map find_friend_prs ref in
     match kind with
@@ -197,7 +201,7 @@ let perform_ci ~name ~repos ~kind ci_refs =
          let commit = Current.map (fun ((c, _), _) -> c) commit in
          Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
          |> List.map (fun platform ->
-                perform_test ~ref ~platform commit
+                perform_test ~commit_status ~ref ~platform commit
                 |> Current.collapse
                      ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
                      ~value:"mirage-skeleton" ~input:commit)
@@ -252,6 +256,7 @@ let make github repos =
           (Mirage_dev { mirage_skeleton = gh_mirage_skeleton_dev; mirage = gh_mirage_master })
           gh_mirage_dev;
       ]
+    |> List.filter (fun Test.{ name; _ } -> List.mem name Mirage_ci_lib.Config.v.ci.main.enabled)
     |> List.map (fun Test.{ name; kind; input } ->
            let prs = ref [] in
            ( name,

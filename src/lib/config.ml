@@ -1,3 +1,14 @@
+
+type main_ci = {
+  enabled: string list;
+  commit_status: string list;
+} [@@deriving yojson]
+
+type ci = {
+  mirage_4: bool;
+  main: main_ci
+} [@@deriving yojson]
+
 type config = {
   cap_file : string;
   (* Capability file for ocluster submissions *)
@@ -5,7 +16,7 @@ type config = {
   (* Git remote from which monorepos can be pulled. *)
   remote_push : string;
   (* Git remote on which assembled monorepos should be pushed. *)
-  enable_commit_status : bool; (* Whether PR commit statuses should be updated. *)
+  ci: ci
 }
 [@@deriving yojson]
 

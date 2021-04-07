@@ -1,7 +1,18 @@
-
 {
     "cap_file": "capability file for ocluster",
     "remote_pull": "remote from which ocluster nodes can git pull",
     "remote_push": "remote to which the master node can git push",
-    "enable_commit_status": false
+    "ci": {
+        "mirage_4": true,
+        "main": {
+            "enabled": [
+                "mirage-dev",
+                "skeleton-master",
+                "skeleton-dev",
+                "mirage-master",
+                "mirage-3"
+            ],
+            "commit_status": []
+        }
+    }
 }
