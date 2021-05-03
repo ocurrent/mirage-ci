@@ -1,31 +1,3 @@
-
-type main_ci = {
-  enabled: string list;
-  commit_status: string list;
-} [@@deriving yojson]
-
-type ci = {
-  mirage_4: bool;
-  main: main_ci
-} [@@deriving yojson]
-
-type config = {
-  cap_file : string;
-  (* Capability file for ocluster submissions *)
-  remote_pull : string;
-  (* Git remote from which monorepos can be pulled. *)
-  remote_push : string;
-  (* Git remote on which assembled monorepos should be pushed. *)
-  ci: ci
-}
-[@@deriving yojson]
-
-let v = Yojson.Safe.from_file "config.json" |> config_of_yojson |> Result.get_ok
-
-let vat = Capnp_rpc_unix.client_only_vat ()
-
-let cap = Capnp_rpc_unix.Cap_file.load vat v.cap_file |> Result.get_ok
-
 let to_ocluster_spec build_spec =
   let open Current.Syntax in
   let+ build_spec = build_spec in

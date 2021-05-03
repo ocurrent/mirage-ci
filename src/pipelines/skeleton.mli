@@ -1,6 +1,7 @@
 open Mirage_ci_lib
 
 val v_main :
+  ocluster:Current_ocluster.t ->
   platform:Platform.t ->
   mirage:Current_git.Commit_id.t Current.t ->
   repos:Repository.t list Current.t ->
@@ -9,6 +10,7 @@ val v_main :
 (** Test mirage-skeleton using the current mirage workflow. *)
 
 val v_4 :
+  ocluster:Current_ocluster.t ->
   repos:Repository.fetched list Current.t ->
   monorepo:Monorepo.t Current.t ->
   platform:Platform.t ->

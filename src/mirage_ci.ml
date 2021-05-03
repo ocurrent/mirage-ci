@@ -13,7 +13,14 @@ let gh_mirage_skeleton = { Github.Repo_id.owner = "mirage"; name = "mirage-skele
 
 let gh_mirage_dev = { Github.Repo_id.owner = "mirage"; name = "mirage-dev" }
 
-let main config github mode =
+let main config github mode (`Ocluster_cap cap) (`Monorepo_pull remote_pull)
+    (`Monorepo_push remote_push) (`Enable_mirage_4 enable_mirage_4) (`PR_CI pr_ci)
+    (`Commit_status commit_status) =
+  let vat = Capnp_rpc_unix.client_only_vat () in
+  let submission_cap = Capnp_rpc_unix.Vat.import_exn vat cap in
+  let connection = Current_ocluster.Connection.create ~max_pipeline:20 submission_cap in
+  let ocluster = Current_ocluster.v ~urgent:`Never connection in
+
   let repo_mirage_skeleton =
     let+ repo_gh = Github.Api.head_of github gh_mirage_skeleton (`Ref "refs/heads/mirage-4") in
     Github.Api.Commit.id repo_gh
@@ -53,11 +60,11 @@ let main config github mode =
       ~repos:repos_unfetched roots
   in
   let mirage_4 =
-    if Config.v.ci.mirage_4 then 
+    if enable_mirage_4 then
       Current.with_context repos @@ fun () ->
       let mirage_skeleton_arm64 =
-        Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_arm64 ~targets:[ "unix"; "hvt" ]
-          ~monorepo ~repos repo_mirage_skeleton
+        Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_arm64
+          ~targets:[ "unix"; "hvt" ] ~monorepo ~repos repo_mirage_skeleton
       in
       let mirage_skeleton_amd64 =
         Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_amd64 ~targets:[ "xen"; "spt" ]
@@ -68,33 +75,26 @@ let main config github mode =
           ~repos:repos_unfetched ~lock:monorepo_lock
       in
       let mirage_edge =
-        Mirage_ci_pipelines.Monorepo.mirage_edge ~platform:Platform.platform_arm64
-          ~remote_pull:Config.v.remote_pull ~remote_push:Config.v.remote_push ~roots
-          ~repos:repos_unfetched ~lock:monorepo_lock
+        Mirage_ci_pipelines.Monorepo.mirage_edge ~platform:Platform.platform_arm64 ~remote_pull
+          ~remote_push ~roots ~repos:repos_unfetched ~lock:monorepo_lock
       in
       let universe_edge =
-        Mirage_ci_pipelines.Monorepo.universe_edge ~platform:Platform.platform_arm64
-          ~remote_pull:Config.v.remote_pull ~remote_push:Config.v.remote_push ~roots
-          ~repos:repos_unfetched ~lock:monorepo_lock
-      in
-      let mirage_docs =
-        Mirage_ci_pipelines.Monorepo.docs ~system:Platform.system ~repos:repos_unfetched
-          ~lock:monorepo_lock
+        Mirage_ci_pipelines.Monorepo.universe_edge ~platform:Platform.platform_arm64 ~remote_pull
+          ~remote_push ~roots ~repos:repos_unfetched ~lock:monorepo_lock
       in
       Current.all_labelled
         [
-          ("mirage-skeleton-arm64", mirage_skeleton_arm64);
-          ("mirage-skeleton-amd64", mirage_skeleton_amd64);
-          ("mirage-released", mirage_released);
-          ("mirage-edge", mirage_edge);
-          ("universe-edge", universe_edge);
-          ("mirage-docs", mirage_docs);
+          ("mirage-skeleton-arm64", mirage_skeleton_arm64 ~ocluster);
+          ("mirage-skeleton-amd64", mirage_skeleton_amd64 ~ocluster);
+          ("mirage-released", mirage_released ~ocluster);
+          ("mirage-edge", mirage_edge ~ocluster);
+          ("universe-edge", universe_edge ~ocluster);
         ]
-    else
-      Current.return ~label:"disabled" ()
+    else Current.return ~label:"disabled" ()
   in
   let prs =
-    Mirage_ci_pipelines.PR.make github (Repository.current_list_unfetch repos_mirage_main)
+    Mirage_ci_pipelines.PR.make ~ocluster ~test:pr_ci ~commit_status github
+      (Repository.current_list_unfetch repos_mirage_main)
   in
   let engine =
     Current.Engine.create ~config (fun () ->
@@ -103,9 +103,9 @@ let main config github mode =
   in
   let site =
     let routes =
-        Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
-    :: Mirage_ci_pipelines.PR.routes prs @
-      Current_web.routes engine
+      Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
+      :: Mirage_ci_pipelines.PR.routes prs
+      @ Current_web.routes engine
     in
     Current_web.Site.(v ~has_role:allow_all) ~name:program_name routes
   in
@@ -122,9 +122,59 @@ let main config github mode =
 
 open Cmdliner
 
+let named f = Cmdliner.Term.(app (const f))
+
+let ocluster_cap =
+  Arg.required
+  @@ Arg.opt Arg.(some Capnp_rpc_unix.sturdy_uri) None
+  @@ Arg.info ~doc:"The ocluster submission capability file" ~docv:"FILE" [ "ocluster-cap" ]
+  |> named (fun x -> `Ocluster_cap x)
+
+let monorepo_pull =
+  Arg.required
+  @@ Arg.(opt (some string) None)
+  @@ Arg.info ~doc:"Repository from which workers can pull monorepos" [ "monorepo-pull-from" ]
+  |> named (fun x -> `Monorepo_pull x)
+
+let monorepo_push =
+  Arg.required
+  @@ Arg.(opt (some string) None)
+  @@ Arg.info ~doc:"Repository to which main node can push" [ "monorepo-push-to" ]
+  |> named (fun x -> `Monorepo_push x)
+
+let mirage_4 =
+  Arg.value @@ Arg.flag
+  @@ Arg.info ~doc:"Test `TheLortex/mirage#mirage-4` development branch" [ "test-mirage-4" ]
+  |> named (fun x -> `Enable_mirage_4 x)
+
+let pr_kind_conv =
+  Arg.conv
+    ( (function
+      | "all" -> Ok Mirage_ci_pipelines.PR.RepoBranch.all
+      | v ->
+          Mirage_ci_pipelines.PR.RepoBranch.of_string v
+          |> Option.map (fun x -> [ x ])
+          |> Option.to_result ~none:(`Msg "failed to parse target")),
+      Fmt.(list (using Mirage_ci_pipelines.PR.RepoBranch.to_string string)) )
+
+let main_ci_jobs =
+  Arg.value
+  @@ Arg.(opt (list pr_kind_conv) [])
+  @@ Arg.info ~doc:"Track PRs for the following jobs" [ "main-ci" ]
+  |> named (fun x -> `PR_CI (List.flatten x))
+
+let main_ci_commit_status =
+  Arg.value
+  @@ Arg.(opt (list pr_kind_conv) [])
+  @@ Arg.info ~doc:"Report commit status for the following jobs" [ "commit-status" ]
+  |> named (fun x -> `Commit_status (List.flatten x))
+
 let cmd =
   let doc = "an OCurrent pipeline" in
-  ( Term.(const main $ Current.Config.cmdliner $ Current_github.Api.cmdliner $ Current_web.cmdliner),
+  ( Term.(
+      const main $ Current.Config.cmdliner $ Current_github.Api.cmdliner $ Current_web.cmdliner
+      $ ocluster_cap $ monorepo_pull $ monorepo_push $ mirage_4 $ main_ci_jobs
+      $ main_ci_commit_status),
     Term.info program_name ~doc )
 
 let () = Term.(exit @@ eval cmd)

@@ -15,6 +15,7 @@ val configure :
 the generated opam file. It runs on the host machine. *)
 
 val build :
+  ocluster:Current_ocluster.t ->
   platform:Platform.t ->
   base:Spec.t Current.t ->
   project:Current_git.Commit_id.t Current.t ->

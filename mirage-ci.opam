@@ -14,6 +14,13 @@ depends: [
   "fmt"
   "lwt"
   "cmdliner"
+  "opam-file-format"
+  "lambdasoup"
+  "dockerfile"
+  "obuilder-spec"
+  "opam-0install"
+  "capnp-rpc-unix"
+  "opam-format"
   "ocaml" {>= "4.08.0"}
 ]
 build: [

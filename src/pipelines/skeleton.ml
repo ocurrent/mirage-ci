@@ -20,7 +20,7 @@ type configuration_4 = {
 
 type test = { platform : Platform.t; unikernel : string; target : string }
 
-let run_test_mirage_4 { unikernel; platform; target } configuration =
+let run_test_mirage_4 ~ocluster { unikernel; platform; target } configuration =
   let c = configuration in
   let repos =
     let+ repos = c.repos in
@@ -45,7 +45,7 @@ let run_test_mirage_4 { unikernel; platform; target } configuration =
     and+ skeleton = c.skeleton in
     Current_git.Commit.id skeleton
   in
-  Mirage.build ~platform ~base ~project:skeleton ~unikernel ~target ()
+  Mirage.build ~ocluster ~platform ~base ~project:skeleton ~unikernel ~target ()
   |> Current.collapse
        ~key:("Unikernel " ^ unikernel ^ "@" ^ target)
        ~value:("4-" ^ Platform.platform_id platform)
@@ -57,7 +57,7 @@ type configuration_main = {
   skeleton : Current_git.Commit_id.t Current.t;
 }
 
-let run_test_mirage_main { unikernel; platform; target } configuration =
+let run_test_mirage_main ~ocluster { unikernel; platform; target } configuration =
   let c = configuration in
   let base =
     let+ repos = c.repos in
@@ -70,7 +70,7 @@ let run_test_mirage_main { unikernel; platform; target } configuration =
     |> Spec.add
          [ Obuilder_spec.run ~network:Setup.network "opam pin -n -y %s" (Setup.remote_uri mirage) ]
   in
-  Mirage.build ~platform ~base ~project:c.skeleton ~unikernel ~target ()
+  Mirage.build ~ocluster ~platform ~base ~project:c.skeleton ~unikernel ~target ()
   |> Current.collapse
        ~key:("Unikernel " ^ unikernel ^ "@" ^ target)
        ~value:("main-" ^ Platform.platform_id platform)
@@ -110,17 +110,17 @@ let multi_stage_test ~platform ~targets ~configure ~run_test mirage_skeleton =
 
 (* MIRAGE 4 TEST *)
 
-let v_4 ~repos ~monorepo ~(platform : Platform.t) ~targets mirage_skeleton =
+let v_4 ~ocluster ~repos ~monorepo ~(platform : Platform.t) ~targets mirage_skeleton =
   let mirage = Mirage.v ~system:platform.system ~repos in
-  multi_stage_test ~platform ~targets ~run_test:run_test_mirage_4
+  multi_stage_test ~platform ~targets ~run_test:(run_test_mirage_4 ~ocluster )
     ~configure:(fun skeleton -> { mirage; monorepo; repos; skeleton })
     mirage_skeleton
 
 (* MIRAGE MAIN TEST *)
 
-let v_main ~platform ~mirage ~repos mirage_skeleton =
+let v_main ~ocluster ~platform ~mirage ~repos mirage_skeleton =
   let mirage_skeleton = Current_git.fetch mirage_skeleton in
-  multi_stage_test ~platform ~targets ~run_test:run_test_mirage_main
+  multi_stage_test ~platform ~targets ~run_test:(run_test_mirage_main ~ocluster)
     ~configure:(fun skeleton ->
       let skeleton = Current.map Current_git.Commit.id skeleton in
       { mirage; repos; skeleton })

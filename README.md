@@ -12,18 +12,17 @@ In `src/pipelines/`, there are three kind of pipelines:
 
 ## Running
 
-Copy `config.sample.json` to `config.json` and edit it accordingly:
-- `cap_file`: Capability file for the ocluster submissions.
-- `remote_push`: a git repository remote to which the head node can push.
-- `remote_pull`: a publish remote endpoint to the same git repository, from which the ocluster workers can pull.
-- `enable_commit_status`: use the github API to push commit statuses.
+You need an ocluster submission token and a git server on which monorepo can be pushed. 
+For the main CI, obtain a Github personal access token that has the `repo:status` authorisation and save it in a file. 
 
-Obtain a Github personal access token that has the `repo:status` authorisation and save it in a file. 
+```
+dune exec -- mirage-ci \
+    --ocluster-cap <OCLUSTER_SUBMISSION_TOKEN_FILE> \
+    --github-token-file <GITHUB_TOKEN_FILE> \
+    --monorepo-pull-from https://github.com/XXX/mirage-ci-monorepo.git \
+    --monorepo-push-to git@github.com:XXX/mirage-ci-monorepo.git \
+    --test-mirage-4 \
+    --main-ci mirage-master,skeleton-dev,mirage-dev-master
+```
 
 Then, use `dune exec -- mirage-ci --github-token-file <TOKEN_FILE>` to launch the CI pipeline. 
-
-
-## Mirage docs
-
-A docker service needs to be created to serve the docs, based on the `mirage-docs` image:
-`docker service create --name mirage-docs -p 8081:80 mirage-docs`

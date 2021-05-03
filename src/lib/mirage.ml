@@ -74,7 +74,7 @@ let configure ~project ~unikernel ~target t =
   |> let> project = project and> t = t in
      ConfigureCache.get No_context { ConfigureOp.Key.tool = t; project; unikernel; target }
 
-let build ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
+let build ~ocluster ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
   let spec =
     let+ base = base in
     let open Obuilder_spec in
@@ -95,6 +95,5 @@ let build ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
   let label = unikernel ^ "@" ^ target in
   let src = [ project ] |> Current.list_seq in
   let cache_hint = Fmt.str "mirage-ci-skeleton-%a" Platform.pp_system platform.system in
-  let cluster = Current_ocluster.v (Current_ocluster.Connection.create Config.cap) in
-  Current_ocluster.build_obuilder ~label ~cache_hint cluster ~pool:(Platform.ocluster_pool platform)
+  Current_ocluster.build_obuilder ~label ~cache_hint ocluster ~pool:(Platform.ocluster_pool platform)
     ~src (spec |> Config.to_ocluster_spec)

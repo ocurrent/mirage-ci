@@ -20,6 +20,7 @@ val docs :
   unit Current.t
 
 val released :
+  ocluster:Current_ocluster.t ->
   platform:Platform.t ->
   roots:Universe.Project.t list ->
   repos:Repository.t list Current.t ->
@@ -28,6 +29,7 @@ val released :
 (** Test the released resolution of the projects. *)
 
 val mirage_edge :
+  ocluster:Current_ocluster.t ->
   platform:Platform.t ->
   remote_pull:string ->
   remote_push:string ->
@@ -39,6 +41,7 @@ val mirage_edge :
 the transitive dependency cone. *)
 
 val universe_edge :
+  ocluster:Current_ocluster.t ->
   platform:Platform.t ->
   remote_pull:string ->
   remote_push:string ->

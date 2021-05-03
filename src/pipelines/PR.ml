@@ -75,14 +75,15 @@ let github_status_of_state kind id status =
   | Error (`Active _) -> Github.Api.Status.v ~url `Pending
   | Error (`Msg m) -> Github.Api.Status.v ~url `Failure ~description:m
 
-let perform_test ?mirage_dev ~commit_status ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit =
+let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit
+    =
   let open Current.Syntax in
   let repos =
     match mirage_dev with
     | None -> repos
     | Some mirage_dev ->
         let+ repos = repos and+ mirage_dev = mirage_dev in
-        repos @ [("mirage-dev", mirage_dev)]
+        repos @ [ ("mirage-dev", mirage_dev) ]
   in
   let* gh_commit' = gh_commit in
   let id =
@@ -90,7 +91,7 @@ let perform_test ?mirage_dev ~commit_status ~platform ~mirage_skeleton ~mirage ~
       (Github.Api.Commit.id gh_commit' |> Git.Commit_id.hash)
       (Mirage_ci_lib.Platform.platform_id platform)
   in
-  let pipeline = Skeleton.v_main ~platform ~mirage ~repos mirage_skeleton in
+  let pipeline = Skeleton.v_main ~ocluster ~platform ~mirage ~repos mirage_skeleton in
   let result =
     Current.return { pipeline; label = Fmt.str "%a" Github.Api.Commit.pp gh_commit'; id }
   in
@@ -150,22 +151,50 @@ let resolve friends repo =
   match
     List.find_map
       (fun (owner, name, number) ->
-        if repo.owner = owner && repo.name = name then
-          (Printf.printf "looking for %d\n" number ;
+        if repo.owner = owner && repo.name = name then (
+          Printf.printf "looking for %d\n" number;
           List.find_map
             (function
-            | `PR Github.Api.Ref.{ id; _ }, value when id = number -> Printf.printf "%s %s >  %d!!\n" owner name id ; Some value 
-            | _ -> None)
-            refs)
+              | `PR Github.Api.Ref.{ id; _ }, value when id = number ->
+                  Printf.printf "%s %s >  %d!!\n" owner name id;
+                  Some value
+              | _ -> None)
+            refs )
         else None)
       friends
   with
   | Some ref -> ref |> Github.Api.Commit.id
   | None -> branch |> Github.Api.Commit.id
 
-let perform_ci ~name ~repos ~kind ci_refs =
+module RepoBranch = struct
+  type t = Skeleton_master | Mirage_3 | Skeleton_dev | Mirage_master | Mirage_dev_master
+
+  let to_string = function
+    | Skeleton_master -> "skeleton-master"
+    | Mirage_3 -> "mirage-3"
+    | Skeleton_dev -> "skeleton-dev"
+    | Mirage_master -> "mirage-master"
+    | Mirage_dev_master -> "mirage-dev-master"
+
+  let of_string = function
+  | "skeleton-master" -> Some Skeleton_master
+  | "mirage-3" -> Some Mirage_3 
+  | "skeleton-dev" -> Some Skeleton_dev 
+  | "mirage-master" -> Some Mirage_master 
+  | "mirage-dev-master" -> Some Mirage_dev_master
+  | _ -> None 
+
+  let all = [Skeleton_master; Mirage_3; Skeleton_dev; Mirage_master; Mirage_dev_master]
+
+  type test = { name : t; kind : kind; input : gh_repo }
+
+  let v name kind input = { name; kind; input }
+end
+
+let perform_ci ~ocluster ~name ~commit_status ~repos ~kind ci_refs =
   let perform_test ~ref =
     let friends = Current.map find_friend_prs ref in
+    let name = RepoBranch.to_string name in
     match kind with
     | Mirage { mirage_dev; mirage_skeleton } ->
         let mirage_dev = Option.map (resolve friends) mirage_dev in
@@ -193,27 +222,21 @@ let perform_ci ~name ~repos ~kind ci_refs =
   |> Current.list_map_url
        (module CommitUrl)
        (fun commit ->
-        let commit_status = List.mem name Mirage_ci_lib.Config.v.ci.main.commit_status in
+         let commit_status = List.mem name commit_status in
          let ref = Current.map (fun ((_, r), _) -> r) commit in
          let commit = Current.map (fun ((c, _), _) -> c) commit in
          Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
          |> List.map (fun platform ->
-                perform_test ~commit_status ~ref ~platform commit
+                perform_test ~ocluster ~commit_status ~ref ~platform commit
                 |> Current.collapse
                      ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
                      ~value:"mirage-skeleton" ~input:commit)
          |> Current.list_seq)
 
-module Test = struct
-  type t = { name : string; kind : kind; input : gh_repo }
-
-  let v name kind input = { name; kind; input }
-end
-
 (* WE PERFORM TWO SETS OF TESTS
 - mirage skeleton 'master' / mirage '3'
 - mirage skeleton 'mirage-dev' / mirage 'master' / mirage-dev 'master'  *)
-let make github repos =
+let make ~ocluster ~test ~commit_status github repos =
   let gh_mirage_skeleton_master =
     github_setup ~branch:"master" ~github "mirage" "mirage-skeleton"
   in
@@ -235,38 +258,40 @@ let make github repos =
     Current.with_context mirage_skeleton_dev @@ fun () ->
     Current.with_context mirage_master @@ fun () ->
     Current.with_context mirage_dev_3 @@ fun () ->
-    Current.with_context mirage_3 @@ fun () -> Current.with_context mirage_dev f
+    Current.with_context mirage_3 @@ fun () -> 
+    Current.with_context mirage_dev f
   in
   let pipeline =
-    Test.
+    RepoBranch.
       [
         (* Mirage 3*)
-        v "skeleton-master"
+        v Skeleton_master
           (Mirage_skeleton { mirage = gh_mirage_3; mirage_dev = Some gh_mirage_dev_3 })
           gh_mirage_skeleton_master;
-        v "mirage-3"
+        v Mirage_3
           (Mirage { mirage_skeleton = gh_mirage_skeleton_master; mirage_dev = Some gh_mirage_dev_3 })
           gh_mirage_3;
-        (*v "mirage-dev-3"
+        (*v Mirage_dev_3
           (Mirage_dev { mirage_skeleton = gh_mirage_skeleton_master; mirage = gh_mirage_3 })
           gh_mirage_dev_3;*)
         (* Mirage master *)
-        v "skeleton-dev"
+        v Skeleton_dev
           (Mirage_skeleton { mirage = gh_mirage_master; mirage_dev = Some gh_mirage_dev })
           gh_mirage_skeleton_dev;
-        v "mirage-master"
+        v Mirage_master
           (Mirage { mirage_skeleton = gh_mirage_skeleton_dev; mirage_dev = Some gh_mirage_dev })
           gh_mirage_master;
-        v "mirage-dev"
+        v Mirage_dev_master
           (Mirage_dev { mirage_skeleton = gh_mirage_skeleton_dev; mirage = gh_mirage_master })
           gh_mirage_dev;
       ]
-    |> List.filter (fun Test.{ name; _ } -> List.mem name Mirage_ci_lib.Config.v.ci.main.enabled)
-    |> List.map (fun Test.{ name; kind; input } ->
+    |> List.filter (fun RepoBranch.{ name; _ } -> List.mem name test)
+    |> List.map (fun RepoBranch.{ name; kind; input } ->
            let prs = ref [] in
-           ( name,
+           ( RepoBranch.to_string name,
              prs,
-             with_context @@ fun () -> perform_ci ~name ~repos ~kind input.ci |> update prs ))
+             with_context @@ fun () ->
+             perform_ci ~ocluster ~name ~commit_status ~repos ~kind input.ci |> update prs ))
   in
   let specs = List.map (fun (name, content, _) -> { name; content }) pipeline in
   let pipeline = (List.map (fun (a, _, b) -> (a, b))) pipeline |> Current.all_labelled in

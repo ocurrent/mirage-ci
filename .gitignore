@@ -5,4 +5,4 @@ var
 .vscode
 _opam
 cap
-config.json
+run.sh
