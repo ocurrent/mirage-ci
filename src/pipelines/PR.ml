@@ -20,7 +20,7 @@ let repo_refs ~github repo =
   Current.primitive ~info:(Current.component "repository refs") (fun () -> refs) (Current.return ())
 
 let pull_request_regex =
-  Str.regexp "https://github.com/\\([A-Za-z0-9]+\\)/\\([A-Za-z0-9]+\\)/pull/\\([0-9]+\\)"
+  Str.regexp "https://github.com/\\([A-Za-z0-9\\-]+\\)/\\([A-Za-z0-9\\-]+\\)/pull/\\([0-9]+\\)"
 
 let find_friend_prs html =
   let open Soup in
@@ -75,15 +75,14 @@ let github_status_of_state kind id status =
   | Error (`Active _) -> Github.Api.Status.v ~url `Pending
   | Error (`Msg m) -> Github.Api.Status.v ~url `Failure ~description:m
 
-let perform_test ?mirage_dev ~commit_status ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit
-    =
+let perform_test ?mirage_dev ~commit_status ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit =
   let open Current.Syntax in
   let repos =
     match mirage_dev with
     | None -> repos
     | Some mirage_dev ->
         let+ repos = repos and+ mirage_dev = mirage_dev in
-        ("mirage-dev", mirage_dev) :: repos
+        repos @ [("mirage-dev", mirage_dev)]
   in
   let* gh_commit' = gh_commit in
   let id =
@@ -151,15 +150,13 @@ let resolve friends repo =
   match
     List.find_map
       (fun (owner, name, number) ->
-        if repo.owner = owner && repo.name = name then (
-          Printf.printf "looking for %d\n" number;
+        if repo.owner = owner && repo.name = name then
+          (Printf.printf "looking for %d\n" number ;
           List.find_map
             (function
-              | `PR Github.Api.Ref.{ id; _ }, value when id = number ->
-                  Printf.printf "%s %s >  %d!!\n" owner name id;
-                  Some value
-              | _ -> None)
-            refs )
+            | `PR Github.Api.Ref.{ id; _ }, value when id = number -> Printf.printf "%s %s >  %d!!\n" owner name id ; Some value 
+            | _ -> None)
+            refs)
         else None)
       friends
   with
@@ -167,7 +164,6 @@ let resolve friends repo =
   | None -> branch |> Github.Api.Commit.id
 
 let perform_ci ~name ~repos ~kind ci_refs =
-  let commit_status = List.mem name Mirage_ci_lib.Config.v.ci.main.commit_status in
   let perform_test ~ref =
     let friends = Current.map find_friend_prs ref in
     match kind with
@@ -197,6 +193,7 @@ let perform_ci ~name ~repos ~kind ci_refs =
   |> Current.list_map_url
        (module CommitUrl)
        (fun commit ->
+        let commit_status = List.mem name Mirage_ci_lib.Config.v.ci.main.commit_status in
          let ref = Current.map (fun ((_, r), _) -> r) commit in
          let commit = Current.map (fun ((c, _), _) -> c) commit in
          Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
@@ -226,32 +223,40 @@ let make github repos =
   let gh_mirage_master = github_setup ~branch:"master" ~github "mirage" "mirage" in
   let gh_mirage_3 = github_setup ~branch:"3" ~github "mirage" "mirage" in
   let gh_mirage_dev = github_setup ~branch:"master" ~github "mirage" "mirage-dev" in
+  let gh_mirage_dev_3 = github_setup ~branch:"3" ~github "mirage" "mirage-dev" in
   let mirage_skeleton_master = id_of gh_mirage_skeleton_master.branch in
   let mirage_skeleton_dev = id_of gh_mirage_skeleton_dev.branch in
   let mirage_master = id_of gh_mirage_master.branch in
   let mirage_3 = id_of gh_mirage_3.branch in
   let mirage_dev = id_of gh_mirage_dev.branch in
+  let mirage_dev_3 = id_of gh_mirage_dev_3.branch in
   let with_context f =
     Current.with_context mirage_skeleton_master @@ fun () ->
     Current.with_context mirage_skeleton_dev @@ fun () ->
     Current.with_context mirage_master @@ fun () ->
+    Current.with_context mirage_dev_3 @@ fun () ->
     Current.with_context mirage_3 @@ fun () -> Current.with_context mirage_dev f
   in
   let pipeline =
     Test.
       [
+        (* Mirage 3*)
         v "skeleton-master"
-          (Mirage_skeleton { mirage = gh_mirage_3; mirage_dev = None })
+          (Mirage_skeleton { mirage = gh_mirage_3; mirage_dev = Some gh_mirage_dev_3 })
           gh_mirage_skeleton_master;
+        v "mirage-3"
+          (Mirage { mirage_skeleton = gh_mirage_skeleton_master; mirage_dev = Some gh_mirage_dev_3 })
+          gh_mirage_3;
+        (*v "mirage-dev-3"
+          (Mirage_dev { mirage_skeleton = gh_mirage_skeleton_master; mirage = gh_mirage_3 })
+          gh_mirage_dev_3;*)
+        (* Mirage master *)
         v "skeleton-dev"
           (Mirage_skeleton { mirage = gh_mirage_master; mirage_dev = Some gh_mirage_dev })
           gh_mirage_skeleton_dev;
         v "mirage-master"
           (Mirage { mirage_skeleton = gh_mirage_skeleton_dev; mirage_dev = Some gh_mirage_dev })
           gh_mirage_master;
-        v "mirage-3"
-          (Mirage { mirage_skeleton = gh_mirage_skeleton_master; mirage_dev = None })
-          gh_mirage_3;
         v "mirage-dev"
           (Mirage_dev { mirage_skeleton = gh_mirage_skeleton_dev; mirage = gh_mirage_master })
           gh_mirage_dev;
