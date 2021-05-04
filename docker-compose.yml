@@ -1,0 +1,67 @@
+version: "3.8"
+services:
+  scheduler:
+    image: ocurrent/ocluster-scheduler:live
+    command:
+      - --secrets-dir=/capnp-secrets
+      - --capnp-secret-key-file=/capnp-secrets/key.pem
+      - --capnp-listen-address=tcp:0.0.0.0:9000
+      - --capnp-public-address=tcp:scheduler:9000
+      - --pools=linux-x86_64,linux-arm64,linux-ppc64
+      - --state-dir=/var/lib/ocluster-scheduler
+      - --default-clients=base-builder
+    init: true
+    ports:
+      - "9000:9000"
+    volumes:
+      - 'scheduler-data:/var/lib/ocluster-scheduler'
+      - 'capnp-secrets:/capnp-secrets'
+  monorepo-git:
+    build:
+      dockerfile: Dockerfile.git
+      context: .
+    restart: on-failure
+    volumes:
+      - "monorepo-git:/git-server/mirage-ci-monorepo"
+  mirage-ci:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    command:
+      - --confirm=above-average
+      - --ocluster-cap=/capnp-secrets/submit-base-builder.cap
+      - --monorepo-pull-from=git://monorepo-git/mirage-ci-monorepo
+      - --monorepo-push-to=git://monorepo-git/mirage-ci-monorepo
+      - --test-mirage-4
+      - --main-ci=mirage-master,skeleton-dev,mirage-dev-master
+    init: true
+    restart: on-failure         # (wait for the scheduler to write the submission cap)
+    ports:
+      - "8080:8080"
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - 'base-builder-data:/var/lib/ocurrent'
+      - "capnp-secrets:/capnp-secrets"
+      - '/tmp:/tmp'
+    environment:
+      - CI_PROFILE=docker
+  worker:
+    image: ocurrent/ocluster-worker:live
+    command:
+      - /capnp-secrets/pool-linux-x86_64.cap
+      - --name=local
+      - --allow-push=ocurrentbuilder/staging,ocurrent/opam-staging
+      - --capacity=1
+      - --state-dir=/var/lib/ocluster
+    init: true
+    restart: on-failure         # (wait for the scheduler to write the pool cap)
+    volumes:
+      - 'worker-data:/var/lib/ocluster'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - 'capnp-secrets:/capnp-secrets:ro'
+volumes:
+  base-builder-data:
+  worker-data:
+  scheduler-data:
+  capnp-secrets:
+  monorepo-git:
