@@ -25,9 +25,7 @@ RUN opam pin add -yn current_ansi.dev "./vendor/ocurrent" && \
 COPY --chown=opam mirage-ci.opam /src/
 RUN opam install -y --deps-only .
 ADD --chown=opam . .
-RUN --mount=type=cache,target=./_build/ opam config exec -- dune build ./_build/install/default/bin/mirage-ci
-RUN --mount=type=cache,target=./_build/ opam config exec -- dune build ./_build/install/default/bin/mirage-ci-solver
-
+RUN --mount=type=cache,target=./_build/,uid=1000,gid=1000 opam config exec -- dune build ./_build/install/default/bin/mirage-ci ./_build/install/default/bin/mirage-ci-solver && cp ./_build/install/default/bin/mirage-ci ./_build/install/default/bin/mirage-ci-solver .
 FROM debian:10
 RUN apt-get update && apt-get install libev4 openssh-client curl gnupg2 dumb-init git graphviz libsqlite3-dev ca-certificates netbase gzip bzip2 xz-utils unzip tar -y --no-install-recommends
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
@@ -37,5 +35,4 @@ RUN git config --global user.name "mirage" && git config --global user.email "ci
 WORKDIR /var/lib/ocurrent
 ENTRYPOINT ["dumb-init", "/usr/local/bin/mirage-ci"]
 ENV OCAMLRUNPARAM=a=2
-COPY --from=build /src/_build/install/default/bin/mirage-ci /usr/local/bin/
-COPY --from=build /src/_build/install/default/bin/mirage-ci-solver /usr/local/bin/
+COPY --from=build /src/mirage-ci /src/mirage-ci-solver /usr/local/bin/
