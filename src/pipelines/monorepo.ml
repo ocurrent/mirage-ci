@@ -102,10 +102,10 @@ let v ~ocluster ~(platform : Platform.t) ~roots ~mode ?(src = Current.return [])
     | Released -> "released"
   in
   let cache_hint = "mirage-ci-monorepo-" ^ Fmt.str "%a" Platform.pp_system platform.system in
-  Current_ocluster.build_obuilder
+  Config.build
     ~label:(name_of_toolchain ^ "-" ^ name_of_mode)
     ~cache_hint ocluster ~pool:(Platform.ocluster_pool platform) ~src
-    (dune_build |> Config.to_ocluster_spec)
+    dune_build
 
 let lock ~(system : Platform.system) ~value ~monorepo ~repos (projects : Universe.Project.t list) =
   Current.with_context repos (fun () ->

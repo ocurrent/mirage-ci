@@ -11,7 +11,7 @@ module Project = struct
 
   let packages =
     [
-      (*v "mirage" Core ["mirage"; "mirage-runtime"; "functoria"; "functoria-runtime"] "This is the main repository that contains the CLI tool.";*)
+      (*v "mirage" Core ["mirage"; "mirage-runtime"; "functoria"; "functoria-runtime"] "This is the main repository that contains the CLI tool.";
       v "ocaml-cstruct"
         [
           opam "cstruct";
@@ -47,7 +47,7 @@ module Project = struct
           opam ~mirage:false "git-cohttp-unix";
           opam ~mirage:false "git-unix";
         ]
-        "Git format and protocol in pure OCaml";
+        "Git format and protocol in pure OCaml";*)
       v "digestif" [ opam "digestif" ] "Hashing functions in pure OCaml or C.";
     ]
 

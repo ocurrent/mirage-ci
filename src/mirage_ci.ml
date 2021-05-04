@@ -1,11 +1,19 @@
 open Mirage_ci_lib
 module Github = Current_github
 module Git = Current_git
-open Current.Syntax
 
 let () = Logging.init ()
 
 let daily = Current_cache.Schedule.v ~valid_for:(Duration.of_day 1) ()
+
+(* Access control policy. *)
+let has_role user role =
+  match user with
+  | None -> role = `Viewer || role = `Monitor (* Unauthenticated users can only look at things. *)
+  | Some user -> (
+      match (Current_web.User.id user, role) with
+      | "github:TheLortex", _ -> true (* These users have all roles *)
+      | _ -> role = `Viewer )
 
 let program_name = "mirage-ci"
 
@@ -13,7 +21,12 @@ let gh_mirage_skeleton = { Github.Repo_id.owner = "mirage"; name = "mirage-skele
 
 let gh_mirage_dev = { Github.Repo_id.owner = "mirage"; name = "mirage-dev" }
 
-let main config github mode (`Ocluster_cap cap) (`Monorepo_pull remote_pull)
+let gh_head_of github name ref =
+  match github with
+  | None -> Github.Api.Anonymous.head_of name ref
+  | Some github -> Github.Api.head_of github name ref |> Current.map Current_github.Api.Commit.id
+
+let main config github mode auth (`Ocluster_cap cap) (`Monorepo_pull remote_pull)
     (`Monorepo_push remote_push) (`Enable_mirage_4 enable_mirage_4) (`PR_CI pr_ci)
     (`Commit_status commit_status) =
   let vat = Capnp_rpc_unix.client_only_vat () in
@@ -21,15 +34,9 @@ let main config github mode (`Ocluster_cap cap) (`Monorepo_pull remote_pull)
   let connection = Current_ocluster.Connection.create ~max_pipeline:20 submission_cap in
   let ocluster = Current_ocluster.v ~urgent:`Never connection in
 
-  let repo_mirage_skeleton =
-    let+ repo_gh = Github.Api.head_of github gh_mirage_skeleton (`Ref "refs/heads/mirage-4") in
-    Github.Api.Commit.id repo_gh
-  in
+  let repo_mirage_skeleton = gh_head_of github gh_mirage_skeleton (`Ref "refs/heads/mirage-4") in
   let repo_mirage_skeleton = Git.fetch repo_mirage_skeleton in
-  let repo_mirage_dev =
-    let+ repo_gh = Github.Api.head_of github gh_mirage_dev (`Ref "refs/heads/mirage-4") in
-    Github.Api.Commit.id repo_gh
-  in
+  let repo_mirage_dev = gh_head_of github gh_mirage_dev (`Ref "refs/heads/mirage-4") in
   let repo_mirage_dev = Git.fetch repo_mirage_dev in
   let repo_opam =
     Current_git.clone ~schedule:daily "https://github.com/ocaml/opam-repository.git"
@@ -59,6 +66,11 @@ let main config github mode (`Ocluster_cap cap) (`Monorepo_pull remote_pull)
     Mirage_ci_pipelines.Monorepo.lock ~system:Platform.system ~value:"universe" ~monorepo
       ~repos:repos_unfetched roots
   in
+  let platform =
+    match Config.profile with
+    | `Docker -> Platform.platform_host
+    | `Production | `Dev -> Platform.platform_arm64
+  in
   let mirage_4 =
     if enable_mirage_4 then
       Current.with_context repos @@ fun () ->
@@ -71,16 +83,16 @@ let main config github mode (`Ocluster_cap cap) (`Monorepo_pull remote_pull)
           ~monorepo ~repos repo_mirage_skeleton
       in
       let mirage_released =
-        Mirage_ci_pipelines.Monorepo.released ~platform:Platform.platform_arm64 ~roots
-          ~repos:repos_unfetched ~lock:monorepo_lock
+        Mirage_ci_pipelines.Monorepo.released ~platform ~roots ~repos:repos_unfetched
+          ~lock:monorepo_lock
       in
       let mirage_edge =
-        Mirage_ci_pipelines.Monorepo.mirage_edge ~platform:Platform.platform_arm64 ~remote_pull
-          ~remote_push ~roots ~repos:repos_unfetched ~lock:monorepo_lock
+        Mirage_ci_pipelines.Monorepo.mirage_edge ~platform ~remote_pull ~remote_push ~roots
+          ~repos:repos_unfetched ~lock:monorepo_lock
       in
       let universe_edge =
-        Mirage_ci_pipelines.Monorepo.universe_edge ~platform:Platform.platform_arm64 ~remote_pull
-          ~remote_push ~roots ~repos:repos_unfetched ~lock:monorepo_lock
+        Mirage_ci_pipelines.Monorepo.universe_edge ~platform ~remote_pull ~remote_push ~roots
+          ~repos:repos_unfetched ~lock:monorepo_lock
       in
       Current.all_labelled
         [
@@ -93,21 +105,40 @@ let main config github mode (`Ocluster_cap cap) (`Monorepo_pull remote_pull)
     else Current.return ~label:"disabled" ()
   in
   let prs =
-    Mirage_ci_pipelines.PR.make ~ocluster ~test:pr_ci ~commit_status github
-      (Repository.current_list_unfetch repos_mirage_main)
+    match github with
+    | None when List.length pr_ci > 0 ->
+        Logs.err (fun f -> f "No github API key was provided using the github-token-file option !");
+        None
+    | None -> None
+    | Some github ->
+        Some
+          (Mirage_ci_pipelines.PR.make ~ocluster ~test:pr_ci ~commit_status github
+             (Repository.current_list_unfetch repos_mirage_main))
   in
+  let main_ci, main_routes =
+    match prs with
+    | None -> ([], [])
+    | Some prs ->
+        ( [ ("mirage-main-ci", Mirage_ci_pipelines.PR.to_current prs) ],
+          Mirage_ci_pipelines.PR.routes prs )
+  in
+
   let engine =
     Current.Engine.create ~config (fun () ->
-        Current.all_labelled
-          [ ("mirage 4", mirage_4); ("mirage-main-ci", Mirage_ci_pipelines.PR.to_current prs) ])
+        Current.all_labelled (("mirage 4", mirage_4) :: main_ci))
+  in
+  let has_role =
+    if auth = None then Current_web.Site.allow_all
+    else has_role
   in
   let site =
     let routes =
-      Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
-      :: Mirage_ci_pipelines.PR.routes prs
+      Routes.((s "login" /? nil) @--> Current_github.Auth.login auth)
+      :: Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
+      :: main_routes
       @ Current_web.routes engine
     in
-    Current_web.Site.(v ~has_role:allow_all) ~name:program_name routes
+    Current_web.Site.(v ~has_role) ~name:program_name routes
   in
   Logging.run
     (Lwt.choose
@@ -169,12 +200,26 @@ let main_ci_commit_status =
   @@ Arg.info ~doc:"Report commit status for the following jobs" [ "commit-status" ]
   |> named (fun x -> `Commit_status (List.flatten x))
 
+let github_config =
+  let read_file path =
+    let ch = open_in_bin path in
+    Fun.protect
+      (fun () ->
+        let len = in_channel_length ch in
+        really_input_string ch len)
+      ~finally:(fun () -> close_in ch)
+  in
+  Arg.value
+  @@ Arg.opt Arg.(some file) None
+  @@ Arg.info ~doc:"A file containing the GitHub OAuth token." ~docv:"PATH" [ "github-token-file" ]
+  |> named (Option.map (fun x -> Current_github.Api.of_oauth @@ String.trim (read_file x)))
+
 let cmd =
   let doc = "an OCurrent pipeline" in
   ( Term.(
-      const main $ Current.Config.cmdliner $ Current_github.Api.cmdliner $ Current_web.cmdliner
-      $ ocluster_cap $ monorepo_pull $ monorepo_push $ mirage_4 $ main_ci_jobs
-      $ main_ci_commit_status),
+      const main $ Current.Config.cmdliner $ github_config $ Current_web.cmdliner
+      $ Current_github.Auth.cmdliner $ ocluster_cap $ monorepo_pull $ monorepo_push $ mirage_4
+      $ main_ci_jobs $ main_ci_commit_status),
     Term.info program_name ~doc )
 
 let () = Term.(exit @@ eval cmd)

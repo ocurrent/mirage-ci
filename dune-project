@@ -32,5 +32,6 @@
   opam-0install
   capnp-rpc-unix
   opam-format
+  git-unix
   (ocaml
    (>= 4.08.0))))

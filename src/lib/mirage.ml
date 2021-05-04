@@ -95,5 +95,5 @@ let build ~ocluster ~(platform : Platform.t) ~base ~project ~unikernel ~target (
   let label = unikernel ^ "@" ^ target in
   let src = [ project ] |> Current.list_seq in
   let cache_hint = Fmt.str "mirage-ci-skeleton-%a" Platform.pp_system platform.system in
-  Current_ocluster.build_obuilder ~label ~cache_hint ocluster ~pool:(Platform.ocluster_pool platform)
-    ~src (spec |> Config.to_ocluster_spec)
+  Config.build ~label ~cache_hint ocluster ~pool:(Platform.ocluster_pool platform)
+    ~src spec

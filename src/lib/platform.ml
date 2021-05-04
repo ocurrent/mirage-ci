@@ -41,3 +41,13 @@ let system = { ocaml = V4_11; os = Debian }
 let platform_amd64 = { system; arch = Amd64 }
 
 let platform_arm64 = { system; arch = Arm64 }
+
+let platform_host =
+  Bos.Cmd.(v "uname" % "-m")
+  |> Bos.OS.Cmd.run_out
+  |> Bos.OS.Cmd.out_string
+  |> Result.to_option
+  |> Option.map (function 
+    | ("aarch64" | "arm64"), _ -> platform_arm64
+    | _ -> platform_amd64)
+  |> Option.value ~default:platform_amd64
