@@ -9,7 +9,7 @@ services:
       - --capnp-public-address=tcp:scheduler:9000
       - --pools=linux-x86_64,linux-arm64,linux-ppc64
       - --state-dir=/var/lib/ocluster-scheduler
-      - --default-clients=base-builder
+      - --default-clients=mirage-ci
     init: true
     ports:
       - "9000:9000"
@@ -29,7 +29,7 @@ services:
       context: .
     command:
       - --confirm=above-average
-      - --ocluster-cap=/capnp-secrets/submit-base-builder.cap
+      - --ocluster-cap=/capnp-secrets/submit-mirage-ci.cap
       - --monorepo-pull-from=git://monorepo-git/mirage-ci-monorepo
       - --monorepo-push-to=git://monorepo-git/mirage-ci-monorepo
       - --test-mirage-4
@@ -40,7 +40,7 @@ services:
       - "8080:8080"
     volumes:
       - '/var/run/docker.sock:/var/run/docker.sock'
-      - 'base-builder-data:/var/lib/ocurrent'
+      - 'mirage-ci-data:/var/lib/ocurrent'
       - "capnp-secrets:/capnp-secrets"
       - '/tmp:/tmp'
     environment:
@@ -60,7 +60,7 @@ services:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - 'capnp-secrets:/capnp-secrets:ro'
 volumes:
-  base-builder-data:
+  mirage-ci-data:
   worker-data:
   scheduler-data:
   capnp-secrets:
