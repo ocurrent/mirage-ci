@@ -4,9 +4,9 @@ module GitPush = struct
   type t = No_context
 
   module Key = struct
-    type t = { remote_push : string; remote_pull : string; branch : string }
+    type t = { store : Git_store.t; branch : string }
 
-    let digest t = t.remote_pull ^ "/" ^ t.remote_push ^ "#" ^ t.branch
+    let digest t = Git_store.remote t.store ^ "#" ^ t.branch
   end
 
   module Value = struct
@@ -39,17 +39,16 @@ module GitPush = struct
 
   let id = "mirage-ci-monorepo-git-push"
 
-  let publish No_context job { Key.remote_pull; remote_push; branch } commits =
+  let publish No_context job { Key.store; branch } commits =
     let open Lwt.Syntax in
     let ( let** ) = Lwt_result.bind in
     let* () = Current.Job.start ~level:Average job in
-    Current.Process.with_tmpdir @@ fun tmpdir ->
+    let** () = Git_store.sync ~job store in
+    Git_store.with_clone ~job ~branch store @@ fun tmpdir ->
     let cmd cmd = Current.Process.exec ~cwd:tmpdir ~cancellable:true ~job ("", cmd) in
     let read cmd = Current.Process.check_output ~cwd:tmpdir ~cancellable:true ~job ("", cmd) in
-    let** () = cmd [| "git"; "init" |] in
-    let** () = cmd [| "git"; "remote"; "add"; "origin"; remote_push |] in
-    let** () = cmd [| "git"; "checkout"; "-b"; branch |] in
-    let** () = cmd [| "git"; "submodule"; "init" |] in
+    let** () = cmd [| "git"; "rm"; "*"; "--ignore-unmatch" |] in
+    let** () = cmd [| "touch"; ".gitmodules" |] in
     let** _ =
       Lwt_list.fold_left_s
         (fun status commit ->
@@ -65,12 +64,12 @@ module GitPush = struct
                     "cp"; "-R"; Fpath.to_string commit_dir; Fpath.(to_string (tmpdir / repo_name));
                   |]
               in
-              let** () = cmd [| "git"; "submodule"; "add"; "-b"; branch; repo; repo_name |] in
+              let** () = cmd [| "git"; "submodule"; "add"; "-f"; "-b"; branch; repo; repo_name |] in
               Lwt.return_ok ()
           | err -> Lwt.return err)
         (Ok ()) commits
     in
-    let** () =
+    let* result =
       cmd
         [|
           "git";
@@ -81,15 +80,21 @@ module GitPush = struct
           "Mirage CI pipeline <ci@mirage.io>";
         |]
     in
-    let** () = cmd [| "git"; "push"; "--force"; "origin"; branch |] in
+    let** () =
+      match result with
+      | Ok () -> cmd [| "git"; "push"; "--force"; "origin"; branch |]
+      | Error _ ->
+          Current.Job.log job "Nothing was commited.";
+          Lwt.return_ok ()
+    in
     let** hash = read [| "git"; "rev-parse"; "HEAD" |] in
-    Lwt.return_ok (Current_git.Commit_id.v ~repo:remote_pull ~gref:branch ~hash)
+    Lwt.return_ok (Current_git.Commit_id.v ~repo:(Git_store.http_remote store) ~gref:branch ~hash)
 end
 
 module GitPushCache = Current_cache.Output (GitPush)
 
-let v ~remote_push ~remote_pull ~branch commits =
+let v git_store ~branch commits =
   let open Current.Syntax in
   Current.component "Monorepo git push"
   |> let> commits = commits in
-     GitPushCache.set No_context { remote_push; remote_pull; branch } commits
+     GitPushCache.set No_context { store = git_store; branch } commits

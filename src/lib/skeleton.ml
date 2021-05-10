@@ -62,7 +62,10 @@ module SkeletonStages = struct
     let* () = Current.Job.start ~level:Harmless job in
     Git.with_checkout ~pool ~job commit @@ fun path ->
     let spec = List.map (do_stage ~path) stages_spec in
-    List.iter (fun (name, root, unikernels) -> Current.Job.log job "%s: %s -> %a" name root Fmt.(list ~sep:(any ", ") string) unikernels) spec;
+    List.iter
+      (fun (name, root, unikernels) ->
+        Current.Job.log job "%s: %s -> %a" name root Fmt.(list ~sep:(any ", ") string) unikernels)
+      spec;
     Lwt.return_ok spec
 end
 

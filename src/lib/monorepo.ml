@@ -1,60 +1,93 @@
 open Current.Syntax
 
-let pool = Current.Pool.create ~label:"monorepo-pool" 4
-
-module Docker = Current_docker.Default
-
 (********************************************)
 (*****************  LOCK  *******************)
 (********************************************)
 
-type t = Docker.Image.t
+type t = { solver : Current_solver.t }
 
 let v ~system ~repos =
-  Current_solver.v ~system ~repos ~packages:[ "opam-monorepo" ]
-  |> Setup.tools_image ~system ~name:"opam-monorepo tool"
+  let+ solver = Current_solver.v ~system ~repos ~packages:[ "opam-monorepo" ] in
+  { solver }
 
-let add_repos repos =
-  let open Dockerfile in
-  let repo_add (name, commit) = run "opam repo add %s %s" name (Setup.remote_uri commit) in
-  List.fold_left ( @@ ) (run "opam repo remove local") (List.map repo_add repos)
-
-let pp_wrap =
-  Fmt.using (String.split_on_char '\n')
-    Fmt.(list ~sep:(unit " \\@\n    ") (using String.trim string))
-
-let lock ~repos ~opam t =
-  let dockerfile =
-    let+ t = t and+ opam = opam and+ repos = repos in
-    let open Dockerfile in
-    from (Docker.Image.hash t)
-    @@ user "opam"
-    @@ add_repos repos 
-    @@ copy ~chown:"opam" ~src:[ "." ] ~dst:"/src" ()
-    @@ workdir "/src"
-    @@ run "echo '%s' >> monorepo.opam" (Fmt.str "%a" pp_wrap (Opamfile.marshal opam))
-    @@ run "opam monorepo lock -l monorepo.opam.locked"
-    |> fun dockerfile -> `Contents dockerfile
+let lock_spec ~system ~repos ~opam =
+  let open Obuilder_spec in
+  let opam_monorepo =
+    Platform.spec system
+    |> Spec.add (Setup.add_repositories repos)
+    |> Spec.add (Setup.install_tools [ "opam-monorepo" ])
+    |> Spec.add [ run "sudo cp $(opam var bin)/opam-monorepo /opam-monorepo" ]
+    |> Spec.finish
   in
-  let image = Docker.build ~dockerfile ~label:"opam monorepo lock" ~pool ~pull:false `No_context in
-  Current.component "monorepo lockfile"
-  |> let** lockfile_str =
-       Docker.pread ~label:"lockfile" ~args:[ "cat"; "/src/monorepo.opam.locked" ] image
-     in
-     let lockfile = OpamParser.string lockfile_str "monorepo.opam.locked" in
-     let packages = Opamfile.get_packages lockfile in
-     let+ dev_repos_str =
-       Docker.pread ~label:"dev repos"
-         ~args:
-           ( [ "opam"; "show"; "--field"; "name:,dev-repo:" ]
-           @ List.map (fun (pkg : Opamfile.pkg) -> pkg.name ^ "." ^ pkg.version) packages )
-         image
-     in
-     Monorepo_lock.make ~opam_file:lockfile
-       ~dev_repo_output:(String.split_on_char '\n' dev_repos_str)
+  Platform.spec system
+  |> Spec.add (Setup.add_repositories repos)
+  |> Spec.children ~name:"monorepo" opam_monorepo
+  |> Spec.add
+       [
+         workdir "/src";
+         run "sudo chown opam:opam /src";
+         run "echo '%s' >> monorepo.opam" (Opamfile.marshal opam);
+         copy ~from:(`Build "monorepo") [ "/opam-monorepo" ] ~dst:"/usr/local/bin/opam-monorepo";
+         run "opam-monorepo lock -l monorepo.opam.locked";
+         run "cp monorepo.opam.locked monorepo.opam";
+         run "opam pin add monorepo -ny -k path /src/ --ignore-pin-depends";
+         run
+           "opam list --columns name:,dev-repo: --required-by monorepo -s --separator ';' >> \
+            monorepo.dev-repo";
+       ]
 
-let lock ~value ~repos ~opam t =
-  Current.collapse ~key:"monorepo-lock" ~value ~input:opam (lock ~repos ~opam t)
+let upload_spec ~store ~branch =
+  let open Obuilder_spec in
+  let open Git_store in
+  Spec.add
+    [
+      Cluster.clone ~branch ~directory:"store" store;
+      run "cp monorepo.opam.locked monorepo.dev-repo  store/";
+      workdir "store";
+      run "git add monorepo.opam.locked monorepo.dev-repo";
+      run
+        "git diff-index --quiet HEAD || git commit -m 'Update monorepo.opam.locked and \
+         monorepo.dev-repo'";
+      Cluster.push store;
+    ]
+
+module Reader : Git_store.Reader with type t = string * string = struct
+  type t = string * string [@@deriving yojson]
+
+  let id = "monorepo.opam.locked-dev-repo"
+
+  let fn dir =
+    let lockfile = Bos.OS.File.read Fpath.(dir / "monorepo.opam.locked") |> Result.get_ok in
+    let dev_repo = Bos.OS.File.read Fpath.(dir / "monorepo.dev-repo") |> Result.get_ok in
+    Lwt.return (lockfile, dev_repo)
+
+  let marshal t = to_yojson t |> Yojson.Safe.to_string
+
+  let unmarshal t = Yojson.Safe.from_string t |> of_yojson |> Result.get_ok
+
+  let pp f (lockfile, dev_repo) = Fmt.pf f "Lockfile:\n%s\n\nDev-repo:\n%s\n" lockfile dev_repo
+end
+
+let lock ~key ~cluster ~store ~repos ~opam =
+  let spec =
+    let+ opam = opam and+ repos = repos in
+    lock_spec ~system:Platform.system ~repos ~opam |> upload_spec ~store ~branch:key
+  in
+  let job = Config.build cluster ~pool:"linux-x86_64" ~src:(Current.return []) spec in
+  let k =
+    let+ spec = spec and+ _ = job (* fake dependency on job *) in
+    Fmt.to_to_string Obuilder_spec.pp (spec |> Spec.finish)
+  in
+  Git_store.read ~branch:key (module Reader) store k
+
+let lock ~key ~value ~cluster ~store ~repos ~opam _ =
+  let lock =
+    let+ lockfile, dev_repos_str = lock ~key ~cluster ~store ~repos ~opam in
+    let lockfile = Opamfile.unmarshal lockfile in
+    Monorepo_lock.make ~opam_file:lockfile
+      ~dev_repo_output:(String.split_on_char '\n' dev_repos_str)
+  in
+  Current.collapse ~key:"monorepo-lock" ~value ~input:opam lock
 
 (********************************************)
 (***************   SPEC       ***************)

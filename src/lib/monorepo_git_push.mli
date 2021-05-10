@@ -1,6 +1,5 @@
 val v :
-  remote_push:string ->
-  remote_pull:string ->
+  Git_store.t ->
   branch:string ->
   Current_git.Commit.t list Current.term ->
   Current_git.Commit_id.t Current.term

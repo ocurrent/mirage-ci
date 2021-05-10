@@ -75,8 +75,8 @@ let github_status_of_state kind id status =
   | Error (`Active _) -> Github.Api.Status.v ~url `Pending
   | Error (`Msg m) -> Github.Api.Status.v ~url `Failure ~description:m
 
-let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit
-    =
+let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton ~mirage ~repos kind
+    gh_commit =
   let open Current.Syntax in
   let repos =
     match mirage_dev with
@@ -177,14 +177,14 @@ module RepoBranch = struct
     | Mirage_dev_master -> "mirage-dev-master"
 
   let of_string = function
-  | "skeleton-master" -> Some Skeleton_master
-  | "mirage-3" -> Some Mirage_3 
-  | "skeleton-dev" -> Some Skeleton_dev 
-  | "mirage-master" -> Some Mirage_master 
-  | "mirage-dev-master" -> Some Mirage_dev_master
-  | _ -> None 
+    | "skeleton-master" -> Some Skeleton_master
+    | "mirage-3" -> Some Mirage_3
+    | "skeleton-dev" -> Some Skeleton_dev
+    | "mirage-master" -> Some Mirage_master
+    | "mirage-dev-master" -> Some Mirage_dev_master
+    | _ -> None
 
-  let all = [Skeleton_master; Mirage_3; Skeleton_dev; Mirage_master; Mirage_dev_master]
+  let all = [ Skeleton_master; Mirage_3; Skeleton_dev; Mirage_master; Mirage_dev_master ]
 
   type test = { name : t; kind : kind; input : gh_repo }
 
@@ -258,8 +258,7 @@ let make ~ocluster ~test ~commit_status github repos =
     Current.with_context mirage_skeleton_dev @@ fun () ->
     Current.with_context mirage_master @@ fun () ->
     Current.with_context mirage_dev_3 @@ fun () ->
-    Current.with_context mirage_3 @@ fun () -> 
-    Current.with_context mirage_dev f
+    Current.with_context mirage_3 @@ fun () -> Current.with_context mirage_dev f
   in
   let pipeline =
     RepoBranch.

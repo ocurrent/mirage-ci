@@ -6,6 +6,8 @@ open Mirage_ci_lib
 val lock :
   system:Platform.system ->
   value:string ->
+  ocluster:Current_ocluster.t ->
+  store:Git_store.t ->
   monorepo:Monorepo.t Current.t ->
   repos:Repository.t list Current.t ->
   Universe.Project.t list ->
@@ -31,8 +33,7 @@ val released :
 val mirage_edge :
   ocluster:Current_ocluster.t ->
   platform:Platform.t ->
-  remote_pull:string ->
-  remote_push:string ->
+  git_store:Git_store.t ->
   roots:Universe.Project.t list ->
   repos:Repository.t list Current.t ->
   lock:Monorepo_lock.t Current.t ->
@@ -43,8 +44,7 @@ the transitive dependency cone. *)
 val universe_edge :
   ocluster:Current_ocluster.t ->
   platform:Platform.t ->
-  remote_pull:string ->
-  remote_push:string ->
+  git_store:Git_store.t ->
   roots:Universe.Project.t list ->
   repos:Repository.t list Current.t ->
   lock:Monorepo_lock.t Current.t ->

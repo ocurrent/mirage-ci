@@ -5,7 +5,10 @@ val v : system:Platform.system -> repos:Repository.fetched list Current.t -> t C
 (** Build the opam monorepo tool on [system] using [repos]. *)
 
 val lock :
+  key:string ->
   value:string ->
+  cluster:Current_ocluster.t ->
+  store:Git_store.t ->
   repos:Repository.t list Current.t ->
   opam:Opamfile.t Current.t ->
   t Current.t ->
