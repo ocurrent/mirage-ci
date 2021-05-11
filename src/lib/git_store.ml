@@ -1,9 +1,8 @@
 type t = {
-  host : string;
-  repo : string;
+  ssh_host : string;
   ssh_port : int option;
-  http_port : int option;
-  https : bool;
+  ssh_repo : string;
+  http_remote : string;
   private_key : string;
   public_key : string;
   pool : unit Current.Pool.t;
@@ -11,31 +10,27 @@ type t = {
 
 open Cmdliner
 
-let git_host =
+let git_ssh_host =
   Arg.required
   @@ Arg.opt Arg.(some string) None
-  @@ Arg.info ~doc:"The git SSH host to store the transient data" ~docv:"HOST" [ "git-host" ]
+  @@ Arg.info ~doc:"The git SSH host to store the transient data" ~docv:"HOST" [ "git-ssh-host" ]
 
 let git_ssh_port =
   Arg.value
   @@ Arg.opt Arg.(some int) None
   @@ Arg.info ~doc:"The git SSH port" ~docv:"PORT" [ "git-ssh-port" ]
 
-let git_http_port =
-  Arg.value
-  @@ Arg.opt Arg.(some int) None
-  @@ Arg.info ~doc:"The git HTTP port" ~docv:"PORT" [ "git-http-port" ]
-
-let git_https =
-  let v = Arg.value @@ Arg.flag @@ Arg.info ~doc:"Git is over plain HTTP" [ "git-http" ] in
-  Term.(const not $ v)
-
-let git_repository =
+let git_ssh_repository =
   Arg.required
   @@ Arg.opt Arg.(some string) None
   @@ Arg.info ~doc:"The git repository to store the transient data on the specified host"
-       ~docv:"REPO" [ "git-repo" ]
+       ~docv:"REPO" [ "git-ssh-repo" ]
 
+let git_http_remote =
+  Arg.required
+  @@ Arg.opt Arg.(some string) None
+  @@ Arg.info ~doc:"The public http remote for the storage repository" ~docv:"HOST" [ "git-http-remote" ]
+        
 let private_key_file =
   Arg.required
   @@ Arg.opt Arg.(some string) None
@@ -57,13 +52,12 @@ let load_file path =
     if Sys.file_exists path then failwith @@ Fmt.str "Error loading %S: %a" path Fmt.exn ex
     else failwith @@ Fmt.str "File %S does not exist" path
 
-let v host ssh_port http_port https repo private_key_file public_key_file =
+let v ssh_host ssh_port ssh_repo http_remote private_key_file public_key_file =
   {
-    host;
-    repo;
+    ssh_host;
     ssh_port;
-    http_port;
-    https;
+    ssh_repo;
+    http_remote;
     private_key = load_file private_key_file;
     public_key = load_file public_key_file;
     pool = Current.Pool.create ~label:"git repo" 1;
@@ -71,17 +65,15 @@ let v host ssh_port http_port https repo private_key_file public_key_file =
 
 let cmdliner =
   Term.(
-    const v $ git_host $ git_ssh_port $ git_http_port $ git_https $ git_repository
+    const v $ git_ssh_host $ git_ssh_port $ git_ssh_repository $ git_http_remote
     $ private_key_file $ public_key_file)
 
-let v ~host ?ssh_port ?http_port ?(https = true) ~repo ~private_key_file ~public_key_file =
-  v host ssh_port http_port (not https) repo private_key_file public_key_file
+let v ~ssh_host ?ssh_port ~ssh_repo ~http_remote ~private_key_file ~public_key_file =
+  v ssh_host ssh_port ssh_repo http_remote private_key_file public_key_file
 
-let remote t = Fmt.str "git@%s:%s" t.host t.repo
+let remote t = Fmt.str "git@%s:%s" t.ssh_host t.ssh_repo
 
-let http_remote t =
-  let proto = if t.https then "https" else "http" in
-  Fmt.str "%s://%s%a/%s" proto t.host Fmt.(option (fmt ":%d")) t.http_port t.repo
+let http_remote t = t.http_remote
 
 let git_checkout_or_create b =
   Fmt.str
@@ -106,7 +98,7 @@ module Cluster = struct
               User git
               StrictHostKeyChecking=no
             |}
-      t.host
+      t.ssh_host
       Fmt.(option (fmt "Port %d"))
       t.ssh_port
 

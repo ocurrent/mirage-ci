@@ -73,11 +73,10 @@ services:
     command:
       - --confirm=above-average
       - --ocluster-cap=/capnp-secrets/submit-mirage-ci.cap
-      - --git-host=172.17.0.1
-      - --git-repo=repos/mirage-ci-monorepo.git
+      - --git-ssh-host=172.17.0.1
       - --git-ssh-port=2222
-      - --git-http-port=8888
-      - --git-http
+      - --git-ssh-repo=repos/mirage-ci-monorepo.git
+      - --git-http-remote=http://172.17.0.1:8888/repos/mirage-ci-monorepo.git
       - --privkey=/root/.ssh/id_ed25519
       - --pubkey=/root/.ssh/id_ed25519.pub
       - --test-mirage-4
@@ -87,7 +86,6 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock'
       - 'mirage-ci-data:/var/lib/ocurrent'
       - "capnp-secrets:/capnp-secrets"
       - "ssh-credentials:/root/.ssh"

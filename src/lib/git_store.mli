@@ -3,11 +3,10 @@ type t
 val cmdliner : t Cmdliner.Term.t
 
 val v :
-  host:string ->
+  ssh_host:string ->
   ?ssh_port:int ->
-  ?http_port:int ->
-  ?https:bool ->
-  repo:string ->
+  ssh_repo:string ->
+  http_remote:string ->
   private_key_file:string ->
   public_key_file:string ->
   t
