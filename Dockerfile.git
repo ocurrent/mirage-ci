@@ -1,4 +1,4 @@
-FROM alpine/git
+FROM cirocosta/gitserver-http
 RUN apk add git-daemon
 EXPOSE 9418
 ENTRYPOINT ([ -d "/git-server/mirage-ci-monorepo/.git" ] || (echo "Initializing mirage-ci-monorepo repository." && mkdir -p /git-server/mirage-ci-monorepo && git init --bare /git-server/mirage-ci-monorepo && touch /git-server/mirage-ci-monorepo/git-daemon-export-ok)) && git daemon --reuseaddr --verbose --enable=receive-pack --base-path=/git-server/ /git-server/

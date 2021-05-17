@@ -1,9 +1,6 @@
 type resolution = { name : string; version : string }
 
-type t = {
-  resolutions: resolution list;
-  repos: Repository.t list;
-}
+type t = { resolutions : resolution list; repos : Repository.t list }
 
 val v :
   system:Platform.system ->

@@ -27,7 +27,7 @@ let marshal = OpamPrinter.opamfile
 
 let unmarshal t = OpamParser.string t "monorepo.opam"
 
-let digest = marshal
+let digest x = marshal x |> Digest.string |> Digest.to_hex
 
 let to_yojson f = `String (OpamPrinter.opamfile f)
 

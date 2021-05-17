@@ -12,8 +12,6 @@ let is_available_on (platform : Platform.t) = function
 let overrides = [ ("block", targets |> List.filter (( <> ) "muen")) ]
 
 type configuration_4 = {
-  mirage : Mirage.t Current.t;
-  monorepo : Mirage_ci_lib.Monorepo.t Current.t;
   repos : Repository.fetched list Current.t;
   skeleton : Current_git.Commit.t Current.t;
 }
@@ -30,7 +28,6 @@ let run_test_mirage_4 ~ocluster { unikernel; platform; target } configuration =
     let+ repos = repos in
     Platform.spec platform.system |> Spec.add (Setup.add_repositories repos)
   in
-  let configuration = Mirage.configure ~project:c.skeleton ~unikernel ~target c.mirage in
   let base =
     let+ base = base in
     (* pre-install ocaml-freestanding *)
@@ -38,11 +35,7 @@ let run_test_mirage_4 ~ocluster { unikernel; platform; target } configuration =
   in
   let skeleton =
     (* add a fake dep to the lockfile (only rebuild if lockfile changed.)*)
-    let+ _ =
-      Monorepo.lock
-        ~value:("mirage-" ^ unikernel ^ "-" ^ target)
-        ~repos ~opam:configuration c.monorepo
-    and+ skeleton = c.skeleton in
+    let+ skeleton = c.skeleton in
     Current_git.Commit.id skeleton
   in
   Mirage.build ~ocluster ~platform ~base ~project:skeleton ~unikernel ~target ()
@@ -110,10 +103,9 @@ let multi_stage_test ~platform ~targets ~configure ~run_test mirage_skeleton =
 
 (* MIRAGE 4 TEST *)
 
-let v_4 ~ocluster ~repos ~monorepo ~(platform : Platform.t) ~targets mirage_skeleton =
-  let mirage = Mirage.v ~system:platform.system ~repos in
-  multi_stage_test ~platform ~targets ~run_test:(run_test_mirage_4 ~ocluster )
-    ~configure:(fun skeleton -> { mirage; monorepo; repos; skeleton })
+let v_4 ~ocluster ~repos ~(platform : Platform.t) ~targets mirage_skeleton =
+  multi_stage_test ~platform ~targets ~run_test:(run_test_mirage_4 ~ocluster)
+    ~configure:(fun skeleton -> { repos; skeleton })
     mirage_skeleton
 
 (* MIRAGE MAIN TEST *)

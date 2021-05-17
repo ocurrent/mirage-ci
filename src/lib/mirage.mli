@@ -1,19 +1,3 @@
-type t
-(** The type representing the mirage tool. *)
-
-val v : system:Platform.system -> repos:Repository.fetched list Current.t -> t Current.t
-(** [v ~system ~repos] Build the mirage tool on [system] using [repos]. It's always built for the host 
-machine. *)
-
-val configure :
-  project:Current_git.Commit.t Current.t ->
-  unikernel:string ->
-  target:string ->
-  t Current.t ->
-  Opamfile.t Current.t
-(** Run `mirage configure -t [target]` in the [unikernel] folder of the [project] repository and return 
-the generated opam file. It runs on the host machine. *)
-
 val build :
   ocluster:Current_ocluster.t ->
   platform:Platform.t ->

@@ -16,8 +16,7 @@ end
 module Selection = struct
   type t = {
     id : string;  (** The platform ID from the request. *)
-    packages : string list;
-        (** The selected packages ("name.version"). *)
+    packages : string list;  (** The selected packages ("name.version"). *)
     commits : (string * string) list;  (** Commits in opam-repositories to use. *)
   }
   [@@deriving yojson, ord]
@@ -26,7 +25,8 @@ end
 (** A request to select sets of packages for the builds. *)
 module Solve_request = struct
   type t = {
-    opam_repos_folders : (string * string * string) list;  (** Opam repositories to use: name, folder, commit *)
+    opam_repos_folders : (string * string * string) list;
+        (** Opam repositories to use: name, folder, commit *)
     pkgs : string list;  (** Name of packages to solve. *)
     constraints : (string * string) list;  (** Version locks: package, version *)
     platforms : (string * Vars.t) list;  (** Possible build platforms, by ID. *)

@@ -12,42 +12,43 @@ module Project = struct
   let packages =
     [
       (*v "mirage" Core ["mirage"; "mirage-runtime"; "functoria"; "functoria-runtime"] "This is the main repository that contains the CLI tool.";
-      v "ocaml-cstruct"
-        [
-          opam "cstruct";
-          opam "cstruct-sexp";
-          opam ~mirage:false "cstruct-unix";
-          opam ~mirage:false "cstruct-lwt";
-          opam ~mirage:false "cstruct-async";
-        ]
-        "Map OCaml arrays onto C-like structs, suitable for parsing wire protocols.";
+          v "ocaml-uri" [ opam "uri"; opam "uri-sexp" ] "RFC3986 URI parsing library";
+          v "irmin"
+            [
+              opam "irmin";
+              opam "irmin-mirage";
+              opam "irmin-mirage-git";
+              opam ~mirage:false "irmin-unix";
+            ]
+            "a library for persistent stores with built-in snapshot, branching and reverting \
+             mechanisms.";
+          v ~org:"mirleft" "ocaml-tls"
+            [ opam "tls" ~sublibs:[ "lwt" ]; opam "tls-mirage" ]
+            "a pure OCaml implementation of Transport Layer Security.";
+          v "ocaml-git"
+            [
+              opam "git";
+              opam "git-mirage" ~sublibs:[ "dns"; "tcp"; "ssh" ];
+              opam "git-cohttp";
+              opam "git-cohttp-mirage";
+              opam "mimic";
+              opam "carton";
+              opam "carton-lwt";
+              opam ~mirage:false "carton-git";
+              opam ~mirage:false "git-cohttp-unix";
+              opam ~mirage:false "git-unix";
+            ]
+            "Git format and protocol in pure OCaml";
+        v "ocaml-cstruct"
+          [
+            opam "cstruct";
+            opam "cstruct-sexp";
+            opam ~mirage:false "cstruct-unix";
+            opam ~mirage:false "cstruct-lwt";
+            opam ~mirage:false "cstruct-async";
+          ]
+          "Map OCaml arrays onto C-like structs, suitable for parsing wire protocols.";*)
       v "ocaml-uri" [ opam "uri"; opam "uri-sexp" ] "RFC3986 URI parsing library";
-      v "irmin"
-        [
-          opam "irmin";
-          opam "irmin-mirage";
-          opam "irmin-mirage-git";
-          opam ~mirage:false "irmin-unix";
-        ]
-        "a library for persistent stores with built-in snapshot, branching and reverting \
-         mechanisms.";
-      v ~org:"mirleft" "ocaml-tls"
-        [ opam "tls" ~sublibs:[ "lwt" ]; opam "tls-mirage" ]
-        "a pure OCaml implementation of Transport Layer Security.";
-      v "ocaml-git"
-        [
-          opam "git";
-          opam "git-mirage" ~sublibs:[ "dns"; "tcp"; "ssh" ];
-          opam "git-cohttp";
-          opam "git-cohttp-mirage";
-          opam "mimic";
-          opam "carton";
-          opam "carton-lwt";
-          opam ~mirage:false "carton-git";
-          opam ~mirage:false "git-cohttp-unix";
-          opam ~mirage:false "git-unix";
-        ]
-        "Git format and protocol in pure OCaml";*)
       v "digestif" [ opam "digestif" ] "Hashing functions in pure OCaml or C.";
     ]
 

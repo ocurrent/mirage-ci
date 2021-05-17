@@ -26,13 +26,14 @@ let gh_head_of github name ref =
   | None -> Github.Api.Anonymous.head_of name ref
   | Some github -> Github.Api.head_of github name ref |> Current.map Current_github.Api.Commit.id
 
-let main config github mode auth (`Ocluster_cap cap) (`Monorepo_pull remote_pull)
-    (`Monorepo_push remote_push) (`Enable_mirage_4 enable_mirage_4) (`PR_CI pr_ci)
-    (`Commit_status commit_status) =
+let main config github mode auth store (`Ocluster_cap cap) (`Enable_mirage_4 enable_mirage_4)
+    (`PR_CI pr_ci) (`Commit_status commit_status) =
   let vat = Capnp_rpc_unix.client_only_vat () in
   let submission_cap = Capnp_rpc_unix.Vat.import_exn vat cap in
   let connection = Current_ocluster.Connection.create ~max_pipeline:20 submission_cap in
-  let ocluster = Current_ocluster.v ~urgent:`Never connection in
+  let ocluster =
+    Current_ocluster.v ~secrets:(Git_store.Cluster.secrets store) ~urgent:`Never connection
+  in
 
   let repo_mirage_skeleton = gh_head_of github gh_mirage_skeleton (`Ref "refs/heads/mirage-4") in
   let repo_mirage_skeleton = Git.fetch repo_mirage_skeleton in
@@ -63,8 +64,8 @@ let main config github mode auth (`Ocluster_cap cap) (`Monorepo_pull remote_pull
   let roots = Universe.Project.packages in
   let monorepo = Monorepo.v ~system:Platform.system ~repos in
   let monorepo_lock =
-    Mirage_ci_pipelines.Monorepo.lock ~system:Platform.system ~value:"universe" ~monorepo
-      ~repos:repos_unfetched roots
+    Mirage_ci_pipelines.Monorepo.lock ~ocluster ~store ~system:Platform.system ~value:"universe"
+      ~monorepo ~repos:repos_unfetched roots
   in
   let platform =
     match Config.profile with
@@ -76,22 +77,22 @@ let main config github mode auth (`Ocluster_cap cap) (`Monorepo_pull remote_pull
       Current.with_context repos @@ fun () ->
       let mirage_skeleton_arm64 =
         Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_arm64
-          ~targets:[ "unix"; "hvt" ] ~monorepo ~repos repo_mirage_skeleton
+          ~targets:[ "unix"; "hvt" ] ~repos repo_mirage_skeleton
       in
       let mirage_skeleton_amd64 =
         Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_amd64 ~targets:[ "xen"; "spt" ]
-          ~monorepo ~repos repo_mirage_skeleton
+          ~repos repo_mirage_skeleton
       in
       let mirage_released =
         Mirage_ci_pipelines.Monorepo.released ~platform ~roots ~repos:repos_unfetched
           ~lock:monorepo_lock
       in
       let mirage_edge =
-        Mirage_ci_pipelines.Monorepo.mirage_edge ~platform ~remote_pull ~remote_push ~roots
+        Mirage_ci_pipelines.Monorepo.mirage_edge ~platform ~git_store:store ~roots
           ~repos:repos_unfetched ~lock:monorepo_lock
       in
       let universe_edge =
-        Mirage_ci_pipelines.Monorepo.universe_edge ~platform ~remote_pull ~remote_push ~roots
+        Mirage_ci_pipelines.Monorepo.universe_edge ~platform ~git_store:store ~roots
           ~repos:repos_unfetched ~lock:monorepo_lock
       in
       Current.all_labelled
@@ -127,10 +128,7 @@ let main config github mode auth (`Ocluster_cap cap) (`Monorepo_pull remote_pull
     Current.Engine.create ~config (fun () ->
         Current.all_labelled (("mirage 4", mirage_4) :: main_ci))
   in
-  let has_role =
-    if auth = None then Current_web.Site.allow_all
-    else has_role
-  in
+  let has_role = if auth = None then Current_web.Site.allow_all else has_role in
   let site =
     let routes =
       Routes.((s "login" /? nil) @--> Current_github.Auth.login auth)
@@ -160,18 +158,6 @@ let ocluster_cap =
   @@ Arg.opt Arg.(some Capnp_rpc_unix.sturdy_uri) None
   @@ Arg.info ~doc:"The ocluster submission capability file" ~docv:"FILE" [ "ocluster-cap" ]
   |> named (fun x -> `Ocluster_cap x)
-
-let monorepo_pull =
-  Arg.required
-  @@ Arg.(opt (some string) None)
-  @@ Arg.info ~doc:"Repository from which workers can pull monorepos" [ "monorepo-pull-from" ]
-  |> named (fun x -> `Monorepo_pull x)
-
-let monorepo_push =
-  Arg.required
-  @@ Arg.(opt (some string) None)
-  @@ Arg.info ~doc:"Repository to which main node can push" [ "monorepo-push-to" ]
-  |> named (fun x -> `Monorepo_push x)
 
 let mirage_4 =
   Arg.value @@ Arg.flag
@@ -218,8 +204,8 @@ let cmd =
   let doc = "an OCurrent pipeline" in
   ( Term.(
       const main $ Current.Config.cmdliner $ github_config $ Current_web.cmdliner
-      $ Current_github.Auth.cmdliner $ ocluster_cap $ monorepo_pull $ monorepo_push $ mirage_4
-      $ main_ci_jobs $ main_ci_commit_status),
+      $ Current_github.Auth.cmdliner $ Git_store.cmdliner $ ocluster_cap $ mirage_4 $ main_ci_jobs
+      $ main_ci_commit_status),
     Term.info program_name ~doc )
 
 let () = Term.(exit @@ eval cmd)

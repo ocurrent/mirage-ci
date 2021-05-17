@@ -9,29 +9,76 @@ services:
       - --capnp-public-address=tcp:scheduler:9000
       - --pools=linux-x86_64,linux-arm64,linux-ppc64
       - --state-dir=/var/lib/ocluster-scheduler
-      - --default-clients=base-builder
+      - --default-clients=mirage-ci
     init: true
     ports:
       - "9000:9000"
     volumes:
       - 'scheduler-data:/var/lib/ocluster-scheduler'
       - 'capnp-secrets:/capnp-secrets'
-  monorepo-git:
-    build:
-      dockerfile: Dockerfile.git
-      context: .
-    restart: on-failure
+
+  generate-ssh-keys:
+    image: kroniak/ssh-client
+    command: >
+      bash -c "ssh-keygen -q -t ed25519 -f /ssh/id_ed25519 -N '' <<<y
+      && cp /ssh/id_ed25519.pub /ssh/authorized_keys
+      && echo 'Host 172.17.0.1' > /ssh/config
+      && echo '  IdentityFile /root/.ssh/id_ed25519' >> /ssh/config
+      && echo '  Port 2222' >> /ssh/config
+      && echo '  User git' >> /ssh/config
+      && echo '  StrictHostKeyChecking=no' >> /ssh/config
+      && cat /ssh/id_ed25519
+      && cat /ssh/authorized_keys"
     volumes:
-      - "monorepo-git:/git-server/mirage-ci-monorepo"
+      - 'ssh-credentials:/ssh/'
+  
+  monorepo-git-init:
+    image: bitnami/git
+    command: >
+      bash -c "([ ! -d '/git/mirage-ci-monorepo.git' ] || rm -rf /git/mirage-ci-monorepo.git)
+      && ([ ! -d '/tmp/repo' ] || rm -rf /tmp/repo)
+      && mkdir -p /git/mirage-ci-monorepo.git 
+      && cd /git/mirage-ci-monorepo.git
+      && git init --bare -b main
+      && git clone /git/mirage-ci-monorepo.git /tmp/repo
+      && cd /tmp/repo 
+      && git checkout -b main
+      && git config --global user.email 'root@none'
+      && git config --global user.name 'Docker'
+      && git commit --allow-empty -m 'init'
+      && git push --set-upstream origin main
+      && chmod -R 777 /git/mirage-ci-monorepo.git "
+    volumes:
+      - "monorepo-git-data:/git/"
+
+  monorepo-git-http:
+    image: cirocosta/gitserver-http
+    ports:
+      - "8888:80"
+    volumes:
+      - "monorepo-git-data:/var/lib/git/repos"
+
+  monorepo-git-ssh:
+    image: jkarlos/git-server-docker
+    ports:
+      - "2222:22"
+    volumes:
+      - "ssh-credentials:/home/git/.ssh/"
+      - "monorepo-git-data:/home/git/repos"
+
   mirage-ci:
     build:
       dockerfile: Dockerfile
       context: .
     command:
       - --confirm=above-average
-      - --ocluster-cap=/capnp-secrets/submit-base-builder.cap
-      - --monorepo-pull-from=git://monorepo-git/mirage-ci-monorepo
-      - --monorepo-push-to=git://monorepo-git/mirage-ci-monorepo
+      - --ocluster-cap=/capnp-secrets/submit-mirage-ci.cap
+      - --git-ssh-host=172.17.0.1
+      - --git-ssh-port=2222
+      - --git-ssh-repo=repos/mirage-ci-monorepo.git
+      - --git-http-remote=http://172.17.0.1:8888/repos/mirage-ci-monorepo.git
+      - --privkey=/root/.ssh/id_ed25519
+      - --pubkey=/root/.ssh/id_ed25519.pub
       - --test-mirage-4
       - --main-ci=mirage-master,skeleton-dev,mirage-dev-master
     init: true
@@ -39,12 +86,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock'
-      - 'base-builder-data:/var/lib/ocurrent'
+      - 'mirage-ci-data:/var/lib/ocurrent'
       - "capnp-secrets:/capnp-secrets"
-      - '/tmp:/tmp'
+      - "ssh-credentials:/root/.ssh"
     environment:
       - CI_PROFILE=docker
+
   worker:
     image: ocurrent/ocluster-worker:live
     command:
@@ -60,8 +107,10 @@ services:
       - '/var/run/docker.sock:/var/run/docker.sock'
       - 'capnp-secrets:/capnp-secrets:ro'
 volumes:
-  base-builder-data:
+  mirage-ci-data:
   worker-data:
   scheduler-data:
   capnp-secrets:
   monorepo-git:
+  monorepo-git-data:
+  ssh-credentials:

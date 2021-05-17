@@ -12,7 +12,6 @@ val v_main :
 val v_4 :
   ocluster:Current_ocluster.t ->
   repos:Repository.fetched list Current.t ->
-  monorepo:Monorepo.t Current.t ->
   platform:Platform.t ->
   targets:string list ->
   Current_git.Commit.t Current.t ->
