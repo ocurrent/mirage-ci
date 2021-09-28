@@ -10,6 +10,14 @@ let make base =
   let open Obuilder_spec in
   {
     base;
-    ops = [ user ~uid:1000 ~gid:1000; workdir "/home/opam"; run "sudo chown opam:opam /home/opam" ];
+    ops =
+      [
+        user ~uid:1000 ~gid:1000;
+        workdir "/home/opam";
+        run "sudo chown opam:opam /home/opam";
+        run
+          "sudo ln -f /usr/bin/opam-2.1 /usr/bin/opam && rm -rf ~/.opam && opam init -k local -a \
+           /home/opam/opam-repository --bare";
+      ];
     children = [];
   }
