@@ -1,8 +1,16 @@
-type ocaml_version = V4_10 | V4_11
+type ocaml_version = V4_10 | V4_11 | V4_12 | V4_13
 
-let pp_ocaml f = function V4_10 -> Fmt.pf f "4.10" | V4_11 -> Fmt.pf f "4.11"
+let pp_ocaml f = function
+  | V4_10 -> Fmt.pf f "4.10"
+  | V4_11 -> Fmt.pf f "4.11"
+  | V4_12 -> Fmt.pf f "4.12"
+  | V4_13 -> Fmt.pf f "4.13"
 
-let pp_exact_ocaml f = function V4_10 -> Fmt.pf f "4.10.2" | V4_11 -> Fmt.pf f "4.11.2"
+let pp_exact_ocaml f = function
+  | V4_10 -> Fmt.pf f "4.10.2"
+  | V4_11 -> Fmt.pf f "4.11.2"
+  | V4_12 -> Fmt.pf f "4.12.1"
+  | V4_13 -> Fmt.pf f "4.13.0"
 
 type os = Debian | Ubuntu | Fedora
 
@@ -36,7 +44,7 @@ let ocluster_pool { arch; _ } = match arch with Arm64 -> "linux-arm64" | Amd64 -
 
 (* Base configuration.. *)
 
-let system = { ocaml = V4_11; os = Debian }
+let system = { ocaml = V4_12; os = Debian }
 
 let platform_amd64 = { system; arch = Amd64 }
 
