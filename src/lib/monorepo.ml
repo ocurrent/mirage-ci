@@ -106,7 +106,7 @@ let spec ~base ~lock () =
          run "echo '%s' >> monorepo.opam" (Opamfile.marshal opamfile);
          (* depexts  *)
          run "opam pin -n add monorepo . --locked --ignore-pin-depends";
-         run ~network:Setup.network "opam depext --update -y monorepo";
+         run ~network:Setup.network "opam install -y monorepo";
          run "opam pin -n remove monorepo";
          (* setup lockfile *)
          run "cp monorepo.opam monorepo.opam.locked";

@@ -14,4 +14,4 @@ let add_repositories =
 
 let install_tools tools =
   let tools_s = String.concat " " tools in
-  [ Obuilder_spec.run ~network ~cache:[ opam_download_cache ] "opam depext -i %s" tools_s ]
+  [ Obuilder_spec.run ~network ~cache:[ opam_download_cache ] "opam install -y %s" tools_s ]

@@ -16,8 +16,7 @@ let make base =
         workdir "/home/opam";
         run "sudo chown opam:opam /home/opam";
         run
-          "sudo ln -f /usr/bin/opam-2.1 /usr/bin/opam && rm -rf ~/.opam && opam init -k local -a \
-           /home/opam/opam-repository --bare";
+          "sudo ln -f /usr/bin/opam-2.1 /usr/bin/opam && opam update";
       ];
     children = [];
   }
