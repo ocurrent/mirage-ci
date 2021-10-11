@@ -17,8 +17,6 @@ let has_role user role =
 
 let program_name = "mirage-ci"
 
-let gh_mirage_skeleton = { Github.Repo_id.owner = "mirage"; name = "mirage-skeleton" }
-
 let gh_mirage_dev = { Github.Repo_id.owner = "mirage"; name = "mirage-dev" }
 
 let gh_head_of github name ref =
@@ -35,60 +33,37 @@ let main config github mode auth store (`Ocluster_cap cap) (`Enable_mirage_4 ena
     Current_ocluster.v ~secrets:(Git_store.Cluster.secrets store) ~urgent:`Never connection
   in
 
-  let repo_mirage_skeleton = gh_head_of github gh_mirage_skeleton (`Ref "refs/heads/mirage-4") in
-  let repo_mirage_skeleton = Git.fetch repo_mirage_skeleton in
-  let repo_mirage_dev = gh_head_of github gh_mirage_dev (`Ref "refs/heads/mirage-4") in
+  let repo_mirage_dev = gh_head_of github gh_mirage_dev (`Ref "refs/heads/master") in
   let repo_mirage_dev = Git.fetch repo_mirage_dev in
   let repo_opam =
     Current_git.clone ~schedule:daily "https://github.com/ocaml/opam-repository.git"
   in
   let repo_overlays =
-    Current_git.clone ~schedule:daily "https://github.com/dune-universe/opam-overlays.git"
-  in
-  let repos =
-    [
-      repo_opam |> Current.map (fun x -> ("opam", x));
-      repo_overlays |> Current.map (fun x -> ("overlays", x));
-      repo_mirage_dev |> Current.map (fun x -> ("mirage-dev", x));
-    ]
-    |> Current.list_seq
-  in
-  let repos_unfetched = Repository.current_list_unfetch repos in
-  let repos_mirage_main =
-    [
-      repo_opam |> Current.map (fun x -> ("opam", x));
-      repo_overlays |> Current.map (fun x -> ("overlays", x));
-    ]
-    |> Current.list_seq
-  in
-  let roots = Universe.Project.packages in
-  let platform =
-    match Config.profile with
-    | `Docker -> Platform.platform_host
-    | `Production | `Dev -> Platform.platform_v413_arm64
-  in
-  let monorepo = Monorepo.v ~system:platform.system ~repos in
-  let monorepo_lock =
-    Mirage_ci_pipelines.Monorepo.lock ~ocluster ~store ~system:platform.system ~value:"universe"
-      ~monorepo ~repos:repos_unfetched roots
+    Current_git.clone ~schedule:daily "https://github.com/mirage/opam-overlays.git"
   in
   let mirage_4 =
     if enable_mirage_4 then
+      let repos =
+        [
+          repo_opam |> Current.map (fun x -> ("opam", x));
+          repo_overlays |> Current.map (fun x -> ("overlays", x));
+          repo_mirage_dev |> Current.map (fun x -> ("mirage-dev", x));
+        ]
+        |> Current.list_seq
+      in
+      let repos_unfetched = Repository.current_list_unfetch repos in
+      let roots = Universe.Project.packages in
+      let platform =
+        match Config.profile with
+        | `Docker -> Platform.platform_host
+        | `Production | `Dev -> Platform.platform_v413_arm64
+      in
+      let monorepo = Monorepo.v ~system:platform.system ~repos in
+      let monorepo_lock =
+        Mirage_ci_pipelines.Monorepo.lock ~ocluster ~store ~system:platform.system ~value:"universe"
+          ~monorepo ~repos:repos_unfetched roots
+      in
       Current.with_context repos @@ fun () ->
-      let mirage_skeleton_platforms = [
-        Platform.platform_v412_amd64, [ "xen"; "spt" ];
-        Platform.platform_v412_arm64, [ "unix"; "hvt" ]; 
-        Platform.platform_v413_amd64, [ "xen"; "spt" ]; 
-        Platform.platform_v413_arm64, [ "unix"; "hvt" ]; 
-      ] 
-      in
-      let mirage_skeleton =
-        mirage_skeleton_platforms
-        |> List.map (fun (platform, targets) -> 
-          Fmt.to_to_string Platform.pp_platform platform, 
-          Mirage_ci_pipelines.Skeleton.v_4 ~platform ~targets ~repos ~ocluster repo_mirage_skeleton)
-        |> Current.all_labelled
-      in
       let mirage_released =
         Mirage_ci_pipelines.Monorepo.released ~platform ~roots ~repos:repos_unfetched
           ~lock:monorepo_lock
@@ -103,7 +78,6 @@ let main config github mode auth store (`Ocluster_cap cap) (`Enable_mirage_4 ena
       in
       Current.all_labelled
         [
-          ("mirage-skeleton", mirage_skeleton);
           ("mirage-released", mirage_released ~ocluster);
           ("mirage-edge", mirage_edge ~ocluster);
           ("universe-edge", universe_edge ~ocluster);
@@ -117,6 +91,13 @@ let main config github mode auth store (`Ocluster_cap cap) (`Enable_mirage_4 ena
         None
     | None -> None
     | Some github ->
+        let repos_mirage_main =
+          [
+            repo_opam |> Current.map (fun x -> ("opam", x));
+            repo_overlays |> Current.map (fun x -> ("overlays", x));
+          ]
+          |> Current.list_seq
+        in
         Some
           (Mirage_ci_pipelines.PR.make ~ocluster ~test:pr_ci ~commit_status github
              (Repository.current_list_unfetch repos_mirage_main))
