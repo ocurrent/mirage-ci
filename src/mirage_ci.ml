@@ -62,26 +62,32 @@ let main config github mode auth store (`Ocluster_cap cap) (`Enable_mirage_4 ena
     |> Current.list_seq
   in
   let roots = Universe.Project.packages in
-  let monorepo = Monorepo.v ~system:Platform.system ~repos in
-  let monorepo_lock =
-    Mirage_ci_pipelines.Monorepo.lock ~ocluster ~store ~system:Platform.system ~value:"universe"
-      ~monorepo ~repos:repos_unfetched roots
-  in
   let platform =
     match Config.profile with
     | `Docker -> Platform.platform_host
-    | `Production | `Dev -> Platform.platform_arm64
+    | `Production | `Dev -> Platform.platform_v413_arm64
+  in
+  let monorepo = Monorepo.v ~system:platform.system ~repos in
+  let monorepo_lock =
+    Mirage_ci_pipelines.Monorepo.lock ~ocluster ~store ~system:platform.system ~value:"universe"
+      ~monorepo ~repos:repos_unfetched roots
   in
   let mirage_4 =
     if enable_mirage_4 then
       Current.with_context repos @@ fun () ->
-      let mirage_skeleton_arm64 =
-        Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_arm64
-          ~targets:[ "unix"; "hvt" ] ~repos repo_mirage_skeleton
+      let mirage_skeleton_platforms = [
+        Platform.platform_v412_amd64, [ "xen"; "spt" ];
+        Platform.platform_v412_arm64, [ "unix"; "hvt" ]; 
+        Platform.platform_v413_amd64, [ "xen"; "spt" ]; 
+        Platform.platform_v413_arm64, [ "unix"; "hvt" ]; 
+      ] 
       in
-      let mirage_skeleton_amd64 =
-        Mirage_ci_pipelines.Skeleton.v_4 ~platform:Platform.platform_amd64 ~targets:[ "xen"; "spt" ]
-          ~repos repo_mirage_skeleton
+      let mirage_skeleton =
+        mirage_skeleton_platforms
+        |> List.map (fun (platform, targets) -> 
+          Fmt.to_to_string Platform.pp_platform platform, 
+          Mirage_ci_pipelines.Skeleton.v_4 ~platform ~targets ~repos ~ocluster repo_mirage_skeleton)
+        |> Current.all_labelled
       in
       let mirage_released =
         Mirage_ci_pipelines.Monorepo.released ~platform ~roots ~repos:repos_unfetched
@@ -97,8 +103,7 @@ let main config github mode auth store (`Ocluster_cap cap) (`Enable_mirage_4 ena
       in
       Current.all_labelled
         [
-          ("mirage-skeleton-arm64", mirage_skeleton_arm64 ~ocluster);
-          ("mirage-skeleton-amd64", mirage_skeleton_amd64 ~ocluster);
+          ("mirage-skeleton", mirage_skeleton);
           ("mirage-released", mirage_released ~ocluster);
           ("mirage-edge", mirage_edge ~ocluster);
           ("universe-edge", universe_edge ~ocluster);

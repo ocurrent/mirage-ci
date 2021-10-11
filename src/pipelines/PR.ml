@@ -225,7 +225,7 @@ let perform_ci ~ocluster ~name ~commit_status ~repos ~kind ci_refs =
          let commit_status = List.mem name commit_status in
          let ref = Current.map (fun ((_, r), _) -> r) commit in
          let commit = Current.map (fun ((c, _), _) -> c) commit in
-         Mirage_ci_lib.Platform.[ platform_amd64; platform_arm64 ]
+         Mirage_ci_lib.Platform.[ platform_v413_amd64; platform_v413_arm64 ]
          |> List.map (fun platform ->
                 perform_test ~ocluster ~commit_status ~ref ~platform commit
                 |> Current.collapse
@@ -243,7 +243,7 @@ let make ~ocluster ~test ~commit_status github repos =
   let gh_mirage_skeleton_dev =
     github_setup ~branch:"mirage-dev" ~github "mirage" "mirage-skeleton"
   in
-  let gh_mirage_master = github_setup ~branch:"master" ~github "mirage" "mirage" in
+  let gh_mirage_master = github_setup ~branch:"main" ~github "mirage" "mirage" in
   let gh_mirage_3 = github_setup ~branch:"3" ~github "mirage" "mirage" in
   let gh_mirage_dev = github_setup ~branch:"master" ~github "mirage" "mirage-dev" in
   let gh_mirage_dev_3 = github_setup ~branch:"3" ~github "mirage" "mirage-dev" in

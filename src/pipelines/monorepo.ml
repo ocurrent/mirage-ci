@@ -121,7 +121,7 @@ let lock ~(system : Platform.system) ~value ~ocluster ~store ~monorepo ~repos
       let key =
         Fmt.str "monorepo-%a-%s" Platform.pp_system system (Opamfile.digest configuration)
       in
-      Monorepo.lock ~key ~value ~cluster:ocluster ~store ~repos ~opam:(Current.return configuration)
+      Monorepo.lock ~key ~value ~cluster:ocluster ~store ~repos ~system ~opam:(Current.return configuration)
         monorepo)
 
 let universe_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =

@@ -11,6 +11,7 @@ val lock :
   store:Git_store.t ->
   repos:Repository.t list Current.t ->
   opam:Opamfile.t Current.t ->
+  system:Platform.system ->
   t Current.t ->
   Monorepo_lock.t Current.t
 (** Perform `opam monorepo lock` on the given [opam] definition using [repos].  *)
