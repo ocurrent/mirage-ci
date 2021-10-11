@@ -1,23 +1,19 @@
 module Github = Current_github
 module Git = Current_git
 
-module RepoBranch : sig
-  type t = Skeleton_master | Mirage_3 | Skeleton_dev | Mirage_master | Mirage_dev_master
-
-  val to_string : t -> string
-
-  val of_string : string -> t option
-
-  val all : t list
-end
-
 type t
 (** The PR tester *)
 
+type test_options
+(** Test options (enabling commit status, disabling tasks) *)
+
+val test_options_cmdliner : test_options Cmdliner.Term.t
+
+val is_enabled : test_options -> bool
+
 val make :
   ocluster:Current_ocluster.t ->
-  test:RepoBranch.t list ->
-  commit_status:RepoBranch.t list ->
+  options:test_options ->
   Github.Api.t ->
   (string * Git.Commit_id.t) list Current.t ->
   t
