@@ -7,6 +7,9 @@ val install_tools : string list -> Obuilder_spec.op list
 val opam_download_cache : Obuilder_spec.Cache.t
 (** Obuilder cache for opam downloads *)
 
+val dune_build_cache : Obuilder_spec.Cache.t
+(** Obuilder cache for dune builds *)
+
 val remote_uri : Current_git.Commit_id.t -> string
 (** Get the opam-compatible URI of the commit. *)
 

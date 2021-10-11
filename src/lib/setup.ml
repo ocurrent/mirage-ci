@@ -1,6 +1,9 @@
 let opam_download_cache =
   Obuilder_spec.Cache.v "download-cache" ~target:"/home/opam/.opam/download-cache"
 
+let dune_build_cache = 
+  Obuilder_spec.Cache.v "dune-build-cache" ~target:"/home/opam/.cache/dune"
+
 let network = [ "host" ]
 
 let remote_uri commit =

@@ -11,11 +11,13 @@ let build ~ocluster ~(platform : Platform.t) ~base ~project ~unikernel ~target (
            copy [ "./" ^ unikernel ^ "/config.ml" ] ~dst:("/src/" ^ unikernel ^ "/");
            workdir ("/src/" ^ unikernel);
            run "sudo chown -R opam:opam .";
-           run "opam exec -- mirage configure -t %s" target;
-           run ~cache:[ Setup.opam_download_cache ] ~network:Setup.network
-             "opam exec -- make depends";
+           env "DUNE_CACHE" "enabled";
+           run ~cache:[ Setup.dune_build_cache ] "opam exec -- mirage configure -t %s" target;
+           run
+             ~cache:[ Setup.opam_download_cache; Setup.dune_build_cache ]
+             ~network:Setup.network "opam exec -- make depends";
            copy [ "./" ^ unikernel ^ "/" ] ~dst:("/src/" ^ unikernel);
-           run "opam exec -- mirage build";
+           run ~cache:[ Setup.dune_build_cache ] "opam exec -- mirage build";
          ]
   in
   let label = unikernel ^ "@" ^ target in
