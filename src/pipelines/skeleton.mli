@@ -11,10 +11,10 @@ val v_3 :
 
 val v_4 :
   ocluster:Current_ocluster.t ->
-  repos:Repository.fetched list Current.t ->
   platform:Platform.t ->
-  targets:string list ->
+  mirage:Current_git.Commit_id.t Current.t ->
+  repos:Repository.t list Current.t ->
   Current_git.Commit.t Current.t ->
   unit Current.t
 (** Pipeline optimized for mirage 4, using opam-monorepo to track if
-resolutions changes. *)
+    resolutions changes. *)

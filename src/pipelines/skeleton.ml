@@ -1,8 +1,6 @@
 open Mirage_ci_lib
 open Current.Syntax
 
-let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
-
 let is_available_on (platform : Platform.t) = function
   | "unix" | "hvt" -> true
   | "xen" when platform.arch = Amd64 -> true
@@ -11,6 +9,8 @@ let is_available_on (platform : Platform.t) = function
 (* MIRAGE 3 TESTS *)
 
 module Mirage_3 = struct
+  let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
+
   (* muen: no support for block *)
   let overrides = [ ("block", targets |> List.filter (( <> ) "muen")) ]
 
@@ -87,6 +87,8 @@ end
 (* MIRAGE 4 TESTS *)
 
 module Mirage_4 = struct
+  let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
+
   type configuration_4 = {
     repos : Repository.fetched list Current.t;
     skeleton : Current_git.Commit.t Current.t;
@@ -138,7 +140,9 @@ module Mirage_4 = struct
     |> List.map (fun target -> (target, aux ~target mirage_skeleton stages))
     |> Current.all_labelled
 
-  let v ~ocluster ~repos ~(platform : Platform.t) ~targets mirage_skeleton =
+  let v ~ocluster ~platform ~mirage:_ ~repos mirage_skeleton =
+    (* should we use mirage to pin to mirage.git#main? We need to
+       specify this a bit more... *)
     multi_stage_test ~platform ~targets ~run_test:(run_test ~ocluster)
       ~configure:(fun skeleton -> { repos; skeleton })
       mirage_skeleton
