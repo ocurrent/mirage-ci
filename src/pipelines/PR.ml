@@ -91,7 +91,7 @@ let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton
       (Github.Api.Commit.id gh_commit' |> Git.Commit_id.hash)
       (Mirage_ci_lib.Platform.platform_id platform)
   in
-  let pipeline = Skeleton.v_main ~ocluster ~platform ~mirage ~repos mirage_skeleton in
+  let pipeline = Skeleton.v_3 ~ocluster ~platform ~mirage ~repos mirage_skeleton in
   let result =
     Current.return { pipeline; label = Fmt.str "%a" Github.Api.Commit.pp gh_commit'; id }
   in
