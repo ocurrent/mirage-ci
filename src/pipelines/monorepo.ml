@@ -4,7 +4,6 @@ open Current.Syntax
 open Mirage_ci_lib
 
 type mode = UniverseEdge | MirageEdge | Released
-
 type toolchain = Host | Freestanding
 
 let pp_toolchain () = function Host -> "" | Freestanding -> "-x freestanding"
@@ -21,7 +20,9 @@ let get_monorepo_library ~mirage_only =
     else ()
   in
   let pp_project f (project : Universe.Project.t) =
-    Fmt.pf f "@[%a @,@]" Fmt.(list ~sep:(const string " ") pp_libraries) project.opam
+    Fmt.pf f "@[%a @,@]"
+      Fmt.(list ~sep:(const string " ") pp_libraries)
+      project.opam
   in
   Fmt.str
     {|
@@ -43,7 +44,8 @@ let spec ~mode ~repos ~system ~toolchain ~lock =
     let+ base = base in
     match toolchain with
     | Host -> base
-    | Freestanding -> Spec.add (Setup.install_tools [ "ocaml-freestanding" ]) base
+    | Freestanding ->
+        Spec.add (Setup.install_tools [ "ocaml-freestanding" ]) base
   in
   let spec =
     match mode with
@@ -79,8 +81,8 @@ let spec ~mode ~repos ~system ~toolchain ~lock =
         ]
         spec
 
-let v ~ocluster ~(platform : Platform.t) ~roots ~mode ?(src = Current.return []) ?(toolchain = Host)
-    ~repos ~lock () =
+let v ~ocluster ~(platform : Platform.t) ~roots ~mode ?(src = Current.return [])
+    ?(toolchain = Host) ~repos ~lock () =
   let spec = spec ~system:platform.system ~mode ~repos ~toolchain ~lock in
   let mirage_only = match toolchain with Host -> false | _ -> true in
   let dune_build =
@@ -91,24 +93,33 @@ let v ~ocluster ~(platform : Platform.t) ~roots ~mode ?(src = Current.return [])
         run "echo '%s' >> dune" (get_monorepo_library ~mirage_only roots);
         run "touch monorepo.opam; touch monorepo.ml";
         (* Dune issue with strict_package_deps *)
-        run "find . -type f -name 'dune-project' -exec sed 's/(strict_package_deps)//g' -i {} \\;";
-        run "opam exec -- dune build --profile release --debug-dependency-path %a" pp_toolchain
-          toolchain;
+        run
+          "find . -type f -name 'dune-project' -exec sed \
+           's/(strict_package_deps)//g' -i {} \\;";
+        run
+          "opam exec -- dune build --profile release --debug-dependency-path %a"
+          pp_toolchain toolchain;
         run "du -sh _build/";
       ]
       spec
   in
-  let name_of_toolchain = match toolchain with Host -> "host" | Freestanding -> "freestanding" in
+  let name_of_toolchain =
+    match toolchain with Host -> "host" | Freestanding -> "freestanding"
+  in
   let name_of_mode =
     match mode with
     | UniverseEdge -> "universe-edge"
     | MirageEdge -> "mirage-edge"
     | Released -> "released"
   in
-  let cache_hint = "mirage-ci-monorepo-" ^ Fmt.str "%a" Platform.pp_system platform.system in
+  let cache_hint =
+    "mirage-ci-monorepo-" ^ Fmt.str "%a" Platform.pp_system platform.system
+  in
   Config.build
     ~label:(name_of_toolchain ^ "-" ^ name_of_mode)
-    ~cache_hint ocluster ~pool:(Platform.ocluster_pool platform) ~src dune_build
+    ~cache_hint ocluster
+    ~pool:(Platform.ocluster_pool platform)
+    ~src dune_build
 
 let lock ~(system : Platform.system) ~value ~ocluster ~store ~monorepo ~repos
     (projects : Universe.Project.t list) =
@@ -119,24 +130,28 @@ let lock ~(system : Platform.system) ~value ~ocluster ~store ~monorepo ~repos
           projects
       in
       let key =
-        Fmt.str "monorepo-%a-%s" Platform.pp_system system (Opamfile.digest configuration)
+        Fmt.str "monorepo-%a-%s" Platform.pp_system system
+          (Opamfile.digest configuration)
       in
-      Monorepo.lock ~key ~value ~cluster:ocluster ~store ~repos ~system ~opam:(Current.return configuration)
+      Monorepo.lock ~key ~value ~cluster:ocluster ~store ~repos ~system
+        ~opam:(Current.return configuration)
         monorepo)
 
 let universe_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =
   let src =
     let+ src =
-      Mirage_ci_lib.Monorepo_git_push.v git_store ~branch:"universe-edge-monorepo"
+      Mirage_ci_lib.Monorepo_git_push.v git_store
+        ~branch:"universe-edge-monorepo"
         (Monorepo_lock.commits lock)
     in
     [ src ]
   in
   [
     ( "universe-edge-freestanding",
-      v ~ocluster ~platform ~src ~roots ~mode:UniverseEdge ~toolchain:Freestanding ~repos ~lock ()
-    );
-    ("universe-edge-host", v ~ocluster ~platform ~src ~roots ~mode:UniverseEdge ~repos ~lock ());
+      v ~ocluster ~platform ~src ~roots ~mode:UniverseEdge
+        ~toolchain:Freestanding ~repos ~lock () );
+    ( "universe-edge-host",
+      v ~ocluster ~platform ~src ~roots ~mode:UniverseEdge ~repos ~lock () );
   ]
   |> Current.all_labelled
 
@@ -156,16 +171,20 @@ let mirage_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =
   in
   [
     ( "mirage-edge-freestanding",
-      v ~ocluster ~platform ~src ~roots ~mode:MirageEdge ~toolchain:Freestanding ~repos ~lock () );
-    ("mirage-edge-host", v ~ocluster ~platform ~src ~roots ~mode:MirageEdge ~repos ~lock ());
+      v ~ocluster ~platform ~src ~roots ~mode:MirageEdge ~toolchain:Freestanding
+        ~repos ~lock () );
+    ( "mirage-edge-host",
+      v ~ocluster ~platform ~src ~roots ~mode:MirageEdge ~repos ~lock () );
   ]
   |> Current.all_labelled
 
 let released ~ocluster ~platform ~roots ~repos ~lock =
   [
     ( "released-freestanding",
-      v ~ocluster ~platform ~roots ~mode:Released ~toolchain:Freestanding ~repos ~lock () );
-    ("released-host", v ~ocluster ~platform ~roots ~mode:Released ~repos ~lock ());
+      v ~ocluster ~platform ~roots ~mode:Released ~toolchain:Freestanding ~repos
+        ~lock () );
+    ( "released-host",
+      v ~ocluster ~platform ~roots ~mode:Released ~repos ~lock () );
   ]
   |> Current.all_labelled
 
@@ -179,13 +198,15 @@ let docs ~(system : Platform.system) ~repos ~lock =
         run "opam pin add odoc --dev -y";
         run "rm duniverse/dune";
         (* disable vendoring *)
-        run "find . -type f -name 'dune-project' -exec sed 's/(strict_package_deps)//g' -i {} \\;";
+        run
+          "find . -type f -name 'dune-project' -exec sed \
+           's/(strict_package_deps)//g' -i {} \\;";
         (* Dune issue with strict_package_deps *)
         run "opam exec -- dune upgrade";
         (* Upgrade jbuild files *)
         run
-          "opam exec -- dune build @doc --profile release --debug-dependency-path || echo \"Build \
-           failed. It's ok.\"";
+          "opam exec -- dune build @doc --profile release \
+           --debug-dependency-path || echo \"Build failed. It's ok.\"";
         run "du -sh _build/";
       ]
       spec
@@ -195,7 +216,9 @@ let docs ~(system : Platform.system) ~repos ~lock =
     let open Obuilder_spec in
     let+ dune_build_doc = dune_build_doc in
     let docker =
-      Obuilder_spec.stage ~child_builds:[ ("monorepo", dune_build_doc) ] ~from:"alpine"
+      Obuilder_spec.stage
+        ~child_builds:[ ("monorepo", dune_build_doc) ]
+        ~from:"alpine"
         [
           run "apk update && apk add lighttpd && rm -rf /var/cache/apk/*";
           copy ~from:(`Build "monorepo")
@@ -211,9 +234,13 @@ let docs ~(system : Platform.system) ~repos ~lock =
       let open Current.Syntax in
       Current.component "docker image build"
       |> let> dockerfile = web_ui_docker in
-         Current_docker.Raw.build ~dockerfile:(`Contents_str dockerfile) ~docker_context:None
-           ~pull:false `No_context
+         Current_docker.Raw.build ~dockerfile:(`Contents_str dockerfile)
+           ~docker_context:None ~pull:false `No_context
     in
     image_raw |> Current_docker.Raw.Image.hash |> Docker.Image.of_hash
   in
-  Current.all [ Docker.tag ~tag:"mirage-docs" image; Docker.service ~name:"mirage-docs" ~image () ]
+  Current.all
+    [
+      Docker.tag ~tag:"mirage-docs" image;
+      Docker.service ~name:"mirage-docs" ~image ();
+    ]

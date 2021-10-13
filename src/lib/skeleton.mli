@@ -1,4 +1,5 @@
-type stage = string * string * string list (* name, root folder, unikernel folder *)
+type stage = string * string * string list
+(* name, root folder, unikernel folder *)
 
 type stages = stage list
 

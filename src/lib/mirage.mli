@@ -7,5 +7,5 @@ val build :
   target:string ->
   unit ->
   unit Current.t
-(** Run the full mirage build process using ocluster. It includes the installation of mirage, the 
-configuration step and the build step. *)
+(** Run the full mirage build process using ocluster. It includes the
+    installation of mirage, the configuration step and the build step. *)

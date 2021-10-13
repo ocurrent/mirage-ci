@@ -1,7 +1,6 @@
 module Git = Current_git
 
 type stage = string * string * string list [@@deriving yojson]
-
 type stages = stage list [@@deriving yojson]
 
 let pool = Current.Pool.create ~label:"skeleton-stages" 8
@@ -10,7 +9,9 @@ let stages_spec =
   Fpath.
     [
       ("1: test-target", v "tutorial", Some [ "noop" ]);
-      ("2: tutorial", v "tutorial", Some [ "noop-functor"; "hello"; "hello-key"; "app_info" ]);
+      ( "2: tutorial",
+        v "tutorial",
+        Some [ "noop-functor"; "hello"; "hello-key"; "app_info" ] );
       ("3: tutorial-lwt", v "tutorial" / "lwt", None);
       ("4: devices", v "device-usage", None);
       ("5: applications", v "applications", None);
@@ -22,7 +23,8 @@ let test_unikernel path =
   let unikernel_name = Fpath.basename path in
   if
     (not (List.mem unikernel_name blacklist))
-    && Bos.OS.Path.exists Fpath.(path / "config.ml") |> Result.value ~default:false
+    && Bos.OS.Path.exists Fpath.(path / "config.ml")
+       |> Result.value ~default:false
   then Some unikernel_name
   else None
 
@@ -47,14 +49,11 @@ module SkeletonStages = struct
     type t = stages [@@deriving yojson]
 
     let marshal t = t |> to_yojson |> Yojson.Safe.to_string
-
     let unmarshal t = t |> Yojson.Safe.from_string |> of_yojson |> Result.get_ok
   end
 
   let pp f _ = Fmt.pf f "Skeleton stages"
-
   let id = "skeleton-stages"
-
   let auto_cancel = true
 
   let build No_context job commit =
@@ -64,7 +63,9 @@ module SkeletonStages = struct
     let spec = List.map (do_stage ~path) stages_spec in
     List.iter
       (fun (name, root, unikernels) ->
-        Current.Job.log job "%s: %s -> %a" name root Fmt.(list ~sep:(any ", ") string) unikernels)
+        Current.Job.log job "%s: %s -> %a" name root
+          Fmt.(list ~sep:(any ", ") string)
+          unikernels)
       spec;
     Lwt.return_ok spec
 end

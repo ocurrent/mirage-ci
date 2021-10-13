@@ -8,7 +8,6 @@ type test_options
 (** Test options (enabling commit status, disabling tasks) *)
 
 val test_options_cmdliner : test_options Cmdliner.Term.t
-
 val is_enabled : test_options -> bool
 
 val make :
@@ -19,5 +18,4 @@ val make :
   t
 
 val to_current : t -> unit Current.t
-
 val routes : t -> Current_web.Resource.t Routes.route list

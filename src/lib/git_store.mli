@@ -13,16 +13,12 @@ val v :
 
 module Cluster : sig
   val clone : branch:string -> directory:string -> t -> Obuilder_spec.op
-
   val push : ?force:bool -> t -> Obuilder_spec.op
-
   val secrets : t -> (string * string) list
 end
 
 val remote : t -> string
-
 val http_remote : t -> string
-
 val sync : job:Current.Job.t -> t -> unit Current.or_error Lwt.t
 
 val with_clone :
@@ -36,15 +32,15 @@ module type Reader = sig
   type t
 
   val pp : t Fmt.t
-
   val id : string
-
   val fn : Fpath.t -> t Lwt.t
-
   val marshal : t -> string
-
   val unmarshal : string -> t
 end
 
 val read :
-  branch:string -> (module Reader with type t = 'a) -> t -> string Current.t -> 'a Current.t
+  branch:string ->
+  (module Reader with type t = 'a) ->
+  t ->
+  string Current.t ->
+  'a Current.t

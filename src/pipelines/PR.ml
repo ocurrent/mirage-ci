@@ -2,9 +2,7 @@ module Github = Current_github
 module Git = Current_git
 
 type pr_info = { id : string; label : string; pipeline : unit Current.t }
-
 type spec = { name : string; content : pr_info list ref }
-
 type t = { specs : spec list; pipeline : unit Current.t }
 
 type gh_repo = {
@@ -17,15 +15,21 @@ type gh_repo = {
 
 let repo_refs ~github repo =
   let refs = Github.Api.refs github repo in
-  Current.primitive ~info:(Current.component "repository refs") (fun () -> refs) (Current.return ())
+  Current.primitive
+    ~info:(Current.component "repository refs")
+    (fun () -> refs)
+    (Current.return ())
 
 let pull_request_regex =
-  Str.regexp "https://github.com/\\([A-Za-z0-9\\-]+\\)/\\([A-Za-z0-9\\-]+\\)/pull/\\([0-9]+\\)"
+  Str.regexp
+    "https://github.com/\\([A-Za-z0-9\\-]+\\)/\\([A-Za-z0-9\\-]+\\)/pull/\\([0-9]+\\)"
 
 let find_friend_prs html =
   let open Soup in
   let html = parse html in
-  html $$ "a" |> to_list
+  html
+  $$ "a"
+  |> to_list
   |> List.filter_map (fun link ->
          let content = attribute "href" link |> Option.value ~default:"" in
          if Str.string_match pull_request_regex content 0 then
@@ -54,9 +58,12 @@ let github_setup ~branch ~github owner name =
     let map = Github.Api.all_refs refs in
     List.filter_map
       (fun commit ->
-        Api.Ref_map.filter (fun _ commit' -> Api.Commit.(hash commit' = hash commit)) map
+        Api.Ref_map.filter
+          (fun _ commit' -> Api.Commit.(hash commit' = hash commit))
+          map
         |> Api.Ref_map.bindings
-        |> List.find_map (fun (ref, _) -> if ref_filter ref then Some (ref, commit) else None))
+        |> List.find_map (fun (ref, _) ->
+               if ref_filter ref then Some (ref, commit) else None))
       ci_refs
   in
   let all =
@@ -66,7 +73,8 @@ let github_setup ~branch ~github owner name =
   let branch = Github.Api.head_of github gh (`Ref ("refs/heads/" ^ branch)) in
   { owner; name; ci; branch; all }
 
-let url kind id = Uri.of_string (Fmt.str "https://ci.mirage.io/github/%s/prs/%s" kind id)
+let url kind id =
+  Uri.of_string (Fmt.str "https://ci.mirage.io/github/%s/prs/%s" kind id)
 
 let github_status_of_state kind id status =
   let url = url kind id in
@@ -75,8 +83,8 @@ let github_status_of_state kind id status =
   | Error (`Active _) -> Github.Api.Status.v ~url `Pending
   | Error (`Msg m) -> Github.Api.Status.v ~url `Failure ~description:m
 
-let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton ~mirage ~repos kind
-    gh_commit =
+let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton
+    ~mirage ~repos kind gh_commit =
   let open Current.Syntax in
   let repos =
     match mirage_dev with
@@ -91,18 +99,23 @@ let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton
       (Github.Api.Commit.id gh_commit' |> Git.Commit_id.hash)
       (Mirage_ci_lib.Platform.platform_id platform)
   in
-  let pipeline = Skeleton.v_main ~ocluster ~platform ~mirage ~repos mirage_skeleton in
+  let pipeline =
+    Skeleton.v_main ~ocluster ~platform ~mirage ~repos mirage_skeleton
+  in
   let result =
-    Current.return { pipeline; label = Fmt.str "%a" Github.Api.Commit.pp gh_commit'; id }
+    Current.return
+      { pipeline; label = Fmt.str "%a" Github.Api.Commit.pp gh_commit'; id }
   in
   let+ _ =
     match commit_status with
     | false -> pipeline
     | true ->
-        pipeline |> Current.state ~hidden:true
+        pipeline
+        |> Current.state ~hidden:true
         |> Current.map (github_status_of_state kind id)
         |> Github.Api.Commit.set_status gh_commit
-             (Fmt.str "Mirage CI - %a" Mirage_ci_lib.Platform.pp_platform platform)
+             (Fmt.str "Mirage CI - %a" Mirage_ci_lib.Platform.pp_platform
+                platform)
   and+ result = result in
   result
 
@@ -115,16 +128,16 @@ module CommitUrl = struct
   type t = (Github.Api.Commit.t * Github.Api.Ref.t) * (string * string)
 
   let pp f (_, (text, _)) = Fmt.pf f "%s" text
-
   let url f (_, (_, url)) = Fmt.pf f "%s" url
-
   let compare ((a, _), _) ((b, _), _) = Github.Api.Commit.compare a b
 end
 
 let pp_url ~(repo : Github.Repo_id.t) f (ref : Github.Api.Ref.t) =
   match ref with
-  | `Ref ref -> Fmt.pf f "https://github.com/%s/%s/tree/%s" repo.owner repo.name ref
-  | `PR { id; _ } -> Fmt.pf f "https://github.com/%s/%s/pull/%d" repo.owner repo.name id
+  | `Ref ref ->
+      Fmt.pf f "https://github.com/%s/%s/tree/%s" repo.owner repo.name ref
+  | `PR { id; _ } ->
+      Fmt.pf f "https://github.com/%s/%s/pull/%d" repo.owner repo.name id
 
 let url_of_commit (commit : Github.Api.Commit.t) (ref : Github.Api.Ref.t) =
   let open Github in
@@ -153,14 +166,19 @@ let resolve friends repo =
                   Printf.printf "%s %s >  %d!!\n" owner name id;
                   Some value
               | _ -> None)
-            refs )
+            refs)
         else None)
       friends
   with
   | Some ref -> ref |> Github.Api.Commit.id
   | None -> branch |> Github.Api.Commit.id
 
-type test = { name : string; kind : kind; input : gh_repo; commit_status : bool }
+type test = {
+  name : string;
+  kind : kind;
+  input : gh_repo;
+  commit_status : bool;
+}
 
 let perform_ci ~ocluster ~name ~commit_status ~repos ~kind ci_refs =
   let perform_test ~ref =
@@ -171,24 +189,28 @@ let perform_ci ~ocluster ~name ~commit_status ~repos ~kind ci_refs =
         let mirage_skeleton = resolve friends mirage_skeleton in
         fun ~platform commit_mirage ->
           let mirage = id_of commit_mirage in
-          perform_test ~platform ?mirage_dev ~mirage_skeleton ~mirage ~repos name commit_mirage
+          perform_test ~platform ?mirage_dev ~mirage_skeleton ~mirage ~repos
+            name commit_mirage
     | Mirage_dev { mirage; mirage_skeleton } ->
         let mirage = resolve friends mirage in
         let mirage_skeleton = resolve friends mirage_skeleton in
         fun ~platform commit_mirage_dev ->
           let mirage_dev = id_of commit_mirage_dev in
-          perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos name commit_mirage_dev
+          perform_test ~platform ~mirage_dev ~mirage_skeleton ~mirage ~repos
+            name commit_mirage_dev
     | Mirage_skeleton { mirage_dev; mirage } ->
         let mirage_dev = Option.map (resolve friends) mirage_dev in
         let mirage = resolve friends mirage in
         fun ~platform commit_mirage_skeleton ->
           let mirage_skeleton = id_of commit_mirage_skeleton in
-          perform_test ~platform ?mirage_dev ~mirage_skeleton ~mirage ~repos name
-            commit_mirage_skeleton
+          perform_test ~platform ?mirage_dev ~mirage_skeleton ~mirage ~repos
+            name commit_mirage_skeleton
   in
   ci_refs
   |> Current.map (fun commits ->
-         List.map (fun (ref, commit) -> ((commit, ref), url_of_commit commit ref)) commits)
+         List.map
+           (fun (ref, commit) -> ((commit, ref), url_of_commit commit ref))
+           commits)
   |> Current.list_map_url
        (module CommitUrl)
        (fun commit ->
@@ -198,7 +220,8 @@ let perform_ci ~ocluster ~name ~commit_status ~repos ~kind ci_refs =
          |> List.map (fun platform ->
                 perform_test ~ocluster ~commit_status ~ref ~platform commit
                 |> Current.collapse
-                     ~key:(Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
+                     ~key:
+                       (Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
                      ~value:"mirage-skeleton" ~input:commit)
          |> Current.list_seq)
 
@@ -216,16 +239,25 @@ let test_options_cmdliner =
   let conv_commit_status =
     Arg.(
       opt ~vopt:(Some [])
-        (some (list (enum [ ("mirage", `Mirage); ("skeleton", `Skeleton); ("dev", `Dev) ])))
+        (some
+           (list
+              (enum
+                 [ ("mirage", `Mirage); ("skeleton", `Skeleton); ("dev", `Dev) ])))
         None)
   in
-  let mirage_4 = Arg.value (conv_commit_status (Arg.info [ "test-mirage-4" ])) in
-  let mirage_3 = Arg.value (conv_commit_status (Arg.info [ "test-mirage-3" ])) in
+  let mirage_4 =
+    Arg.value (conv_commit_status (Arg.info [ "test-mirage-4" ]))
+  in
+  let mirage_3 =
+    Arg.value (conv_commit_status (Arg.info [ "test-mirage-3" ]))
+  in
   let make mirage_3 mirage_4 =
     let make_commit_status list =
       List.fold_left
-        (fun acc -> function `Mirage -> { acc with mirage = true }
-          | `Skeleton -> { acc with skeleton = true } | `Dev -> { acc with dev = true })
+        (fun acc -> function
+          | `Mirage -> { acc with mirage = true }
+          | `Skeleton -> { acc with skeleton = true }
+          | `Dev -> { acc with dev = true })
         { mirage = false; skeleton = false; dev = false }
         list
     in
@@ -242,7 +274,8 @@ type context = {
   repos : Mirage_ci_lib.Repository.t list Current.t;
 }
 
-let pipeline ~mirage ~mirage_skeleton ~extra_repository { ocluster; enable_commit_status; repos } =
+let pipeline ~mirage ~mirage_skeleton ~extra_repository
+    { ocluster; enable_commit_status; repos } =
   let tasks =
     [
       {
@@ -258,7 +291,7 @@ let pipeline ~mirage ~mirage_skeleton ~extra_repository { ocluster; enable_commi
         commit_status = enable_commit_status.skeleton;
       };
     ]
-    @ ( extra_repository
+    @ (extra_repository
       |> Option.map (fun extra_repository ->
              [
                {
@@ -268,21 +301,26 @@ let pipeline ~mirage ~mirage_skeleton ~extra_repository { ocluster; enable_commi
                  commit_status = enable_commit_status.dev;
                };
              ])
-      |> Option.value ~default:[] )
+      |> Option.value ~default:[])
   in
   let pipeline =
     tasks
     |> List.map (fun { name; kind; input; commit_status } ->
            let prs = ref [] in
-           (name, prs, perform_ci ~ocluster ~name ~commit_status ~repos ~kind input.ci |> update prs))
+           ( name,
+             prs,
+             perform_ci ~ocluster ~name ~commit_status ~repos ~kind input.ci
+             |> update prs ))
   in
   let specs = List.map (fun (name, content, _) -> { name; content }) pipeline in
-  let pipeline = (List.map (fun (a, _, b) -> (a, b))) pipeline |> Current.all_labelled in
+  let pipeline =
+    (List.map (fun (a, _, b) -> (a, b))) pipeline |> Current.all_labelled
+  in
   (specs, pipeline)
 
 (* WE PERFORM TWO SETS OF TESTS
-- mirage skeleton 'master' / mirage '3' / mirage-dev '3'
-- mirage skeleton 'mirage-dev' / mirage 'main' / mirage-dev 'master'  *)
+   - mirage skeleton 'master' / mirage '3' / mirage-dev '3'
+   - mirage skeleton 'mirage-dev' / mirage 'main' / mirage-dev 'master' *)
 let make ~ocluster ~options github repos =
   let specs_mirage_main, pipeline_mirage_main =
     match options.mirage_4 with
@@ -291,9 +329,14 @@ let make ~ocluster ~options github repos =
         let gh_mirage_skeleton_dev =
           github_setup ~branch:"mirage-dev" ~github "mirage" "mirage-skeleton"
         in
-        let gh_mirage_master = github_setup ~branch:"main" ~github "mirage" "mirage" in
-        let gh_mirage_dev = github_setup ~branch:"master" ~github "mirage" "mirage-dev" in
-        pipeline ~mirage:gh_mirage_master ~mirage_skeleton:gh_mirage_skeleton_dev
+        let gh_mirage_master =
+          github_setup ~branch:"main" ~github "mirage" "mirage"
+        in
+        let gh_mirage_dev =
+          github_setup ~branch:"master" ~github "mirage" "mirage-dev"
+        in
+        pipeline ~mirage:gh_mirage_master
+          ~mirage_skeleton:gh_mirage_skeleton_dev
           ~extra_repository:(Some gh_mirage_dev) ctx
     | None -> ([], Current.return ~label:"mirage 4: not tested" ())
   in
@@ -305,7 +348,9 @@ let make ~ocluster ~options github repos =
           github_setup ~branch:"master" ~github "mirage" "mirage-skeleton"
         in
         let gh_mirage_3 = github_setup ~branch:"3" ~github "mirage" "mirage" in
-        let gh_mirage_dev_3 = github_setup ~branch:"3" ~github "mirage" "mirage-dev" in
+        let gh_mirage_dev_3 =
+          github_setup ~branch:"3" ~github "mirage" "mirage-dev"
+        in
 
         pipeline ~mirage:gh_mirage_3 ~mirage_skeleton:gh_mirage_skeleton_master
           ~extra_repository:(Some gh_mirage_dev_3) ctx
@@ -314,7 +359,8 @@ let make ~ocluster ~options github repos =
 
   let specs = specs_mirage_main @ specs_mirage_3 in
   let pipeline =
-    Current.all_labelled [ ("mirage-4", pipeline_mirage_main); ("mirage-3", pipeline_mirage_3) ]
+    Current.all_labelled
+      [ ("mirage-4", pipeline_mirage_main); ("mirage-3", pipeline_mirage_3) ]
   in
   { pipeline; specs }
 
@@ -326,7 +372,6 @@ open Tyxml.Html
 let r (pr : pr_info) =
   object
     inherit Current_web.Resource.t
-
     val! can_get = `Viewer
 
     method! private get ctx =
@@ -358,9 +403,11 @@ let r (pr : pr_info) =
 
       |};
             ];
-          div ~a:[ a_id "pipeline_container" ]
+          div
+            ~a:[ a_id "pipeline_container" ]
             [
-              div ~a:[ a_id "pipeline" ] [ html ]; Unsafe.data "<iframe id='logs_iframe' ></iframe>";
+              div ~a:[ a_id "pipeline" ] [ html ];
+              Unsafe.data "<iframe id='logs_iframe' ></iframe>";
             ];
           script
             (Unsafe.data
