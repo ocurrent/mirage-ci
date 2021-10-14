@@ -1,5 +1,6 @@
 module Github = Current_github
 module Git = Current_git
+open Common
 
 type pr_info = { id : string; label : string; pipeline : unit Current.t }
 type spec = { name : string; content : pr_info list ref }
@@ -97,7 +98,7 @@ let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton
   let id =
     Fmt.str "%s-%s"
       (Github.Api.Commit.id gh_commit' |> Git.Commit_id.hash)
-      (Mirage_ci_lib.Platform.platform_id platform)
+      (Platform.platform_id platform)
   in
   let pipeline =
     Skeleton.v_main ~ocluster ~platform ~mirage ~repos mirage_skeleton
@@ -114,8 +115,7 @@ let perform_test ?mirage_dev ~ocluster ~commit_status ~platform ~mirage_skeleton
         |> Current.state ~hidden:true
         |> Current.map (github_status_of_state kind id)
         |> Github.Api.Commit.set_status gh_commit
-             (Fmt.str "Mirage CI - %a" Mirage_ci_lib.Platform.pp_platform
-                platform)
+             (Fmt.str "Mirage CI - %a" Platform.pp_platform platform)
   and+ result = result in
   result
 
@@ -216,12 +216,11 @@ let perform_ci ~ocluster ~name ~commit_status ~repos ~kind ci_refs =
        (fun commit ->
          let ref = Current.map (fun ((_, r), _) -> r) commit in
          let commit = Current.map (fun ((c, _), _) -> c) commit in
-         Mirage_ci_lib.Platform.[ platform_v413_amd64; platform_v413_arm64 ]
+         Platform.[ platform_v413_amd64; platform_v413_arm64 ]
          |> List.map (fun platform ->
                 perform_test ~ocluster ~commit_status ~ref ~platform commit
                 |> Current.collapse
-                     ~key:
-                       (Fmt.str "%a" Mirage_ci_lib.Platform.pp_platform platform)
+                     ~key:(Fmt.str "%a" Platform.pp_platform platform)
                      ~value:"mirage-skeleton" ~input:commit)
          |> Current.list_seq)
 
@@ -271,7 +270,7 @@ let test_options_cmdliner =
 type context = {
   ocluster : Current_ocluster.t;
   enable_commit_status : enable_commit_status;
-  repos : Mirage_ci_lib.Repository.t list Current.t;
+  repos : Repository.t list Current.t;
 }
 
 let pipeline ~mirage ~mirage_skeleton ~extra_repository
@@ -364,6 +363,7 @@ let make ~ocluster ~options github repos =
   in
   { pipeline; specs }
 
+let local ~options:_ _ = Current.return ()
 let to_current t = t.pipeline
 
 open Current_web

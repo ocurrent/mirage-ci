@@ -4,6 +4,8 @@
 
 (generate_opam_files true)
 
+(implicit_transitive_deps false)
+
 ; Edit these to give your project's URL, authors and maintainers:
 
 (source

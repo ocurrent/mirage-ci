@@ -2,8 +2,8 @@
 
 (library
  (name mirage_ci_pipelines)
- (libraries mirage_ci_lib current current.cache current_github current_git
-   current_web current_docker astring dockerfile cmdliner fmt.tty logs.fmt
-   lwt lwt.unix obuilder-spec opam-file-format lambdasoup str)
- (preprocess
-  (pps ppx_deriving_yojson)))
+ (libraries common monorepo_lib mirage_lib current current.term current.cache
+   current_github current_git current_web current_docker current_ocluster
+   routes duration uri tyxml tyxml.functor astring dockerfile cmdliner
+   fmt.tty logs.fmt lwt lwt.unix obuilder-spec opam-file-format lambdasoup
+   str))

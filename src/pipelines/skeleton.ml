@@ -1,5 +1,6 @@
-open Mirage_ci_lib
+open Mirage_lib
 open Current.Syntax
+open Common
 
 let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
 

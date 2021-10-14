@@ -1,13 +1,14 @@
 (*
    ## MONOREPO PIPELINES
 *)
-open Mirage_ci_lib
+open Monorepo_lib
+open Common
 
 val lock :
   system:Platform.system ->
   value:string ->
   ocluster:Current_ocluster.t ->
-  store:Git_store.t ->
+  store:Monorepo.Git_store.t ->
   monorepo:Monorepo.t Current.t ->
   repos:Repository.t list Current.t ->
   Universe.Project.t list ->

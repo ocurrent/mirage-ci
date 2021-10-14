@@ -1,7 +1,8 @@
 module Git = Current_git
 module Docker = Current_docker.Default
 open Current.Syntax
-open Mirage_ci_lib
+open Monorepo_lib
+open Common
 
 type mode = UniverseEdge | MirageEdge | Released
 type toolchain = Host | Freestanding
@@ -140,8 +141,7 @@ let lock ~(system : Platform.system) ~value ~ocluster ~store ~monorepo ~repos
 let universe_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =
   let src =
     let+ src =
-      Mirage_ci_lib.Monorepo_git_push.v git_store
-        ~branch:"universe-edge-monorepo"
+      Monorepo_git_push.v git_store ~branch:"universe-edge-monorepo"
         (Monorepo_lock.commits lock)
     in
     [ src ]
@@ -164,7 +164,7 @@ let mirage_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =
   in
   let src =
     let+ src =
-      Mirage_ci_lib.Monorepo_git_push.v git_store ~branch:"mirage-edge-monorepo"
+      Monorepo_git_push.v git_store ~branch:"mirage-edge-monorepo"
         (Monorepo_lock.commits ~filter lock)
     in
     [ src ]

@@ -3,8 +3,15 @@
 (executable
  (public_name mirage-ci)
  (name mirage_ci)
- (libraries current current.cache current_git current_github current_web
-   current_docker astring dockerfile cmdliner fmt.tty logs.fmt lwt lwt.unix
-   obuilder-spec opam-file-format mirage_ci_pipelines mirage_ci_lib)
- (preprocess
-  (pps ppx_deriving_yojson)))
+ (modules mirage_ci logging)
+ (libraries common monorepo_lib mirage_ci_pipelines duration capnp-rpc-unix
+   current current.cache current_git current_github current_web
+   current_ocluster routes cmdliner fmt.tty logs.fmt lwt lwt.unix))
+
+(executable
+ (public_name mirage-ci-local)
+ (name mirage_ci_local)
+ (modules mirage_ci_local logging_local)
+ (libraries common mirage_ci_pipelines duration current current.cache
+   current_git current_github current_web astring cmdliner fmt.tty logs.fmt
+   lwt lwt.unix))

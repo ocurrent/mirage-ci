@@ -1,4 +1,8 @@
 open Current.Syntax
+module Setup = Common.Setup
+module Spec = Common.Spec
+module Config = Common.Config
+module Platform = Common.Platform
 
 let build ~ocluster ~(platform : Platform.t) ~base ~project ~unikernel ~target
     () =

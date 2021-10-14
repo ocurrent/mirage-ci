@@ -1,4 +1,5 @@
-open Mirage_ci_lib
+open Monorepo_lib
+open Common
 module Github = Current_github
 module Git = Current_git
 

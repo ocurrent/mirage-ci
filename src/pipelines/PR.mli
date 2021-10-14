@@ -19,3 +19,8 @@ val make :
 
 val to_current : t -> unit Current.t
 val routes : t -> Current_web.Resource.t Routes.route list
+
+val local :
+  options:test_options ->
+  (string * Git.Commit_id.t) list Current.t ->
+  unit Current.t

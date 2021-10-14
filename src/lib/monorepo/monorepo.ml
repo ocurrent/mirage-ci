@@ -1,4 +1,6 @@
 open Current.Syntax
+open Common
+module Git_store = Git_store
 
 (********************************************)
 (*****************  LOCK  *******************)
@@ -79,7 +81,8 @@ let lock ~key ~cluster ~store ~repos ~opam ~system =
     lock_spec ~system ~repos ~opam |> upload_spec ~store ~branch:key
   in
   let job =
-    Config.build cluster ~pool:"linux-x86_64" ~src:(Current.return []) spec
+    Common.Config.build cluster ~pool:"linux-x86_64" ~src:(Current.return [])
+      spec
   in
   let k =
     let+ spec = spec and+ _ = job (* fake dependency on job *) in

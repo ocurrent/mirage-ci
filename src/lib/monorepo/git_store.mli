@@ -9,6 +9,7 @@ val v :
   http_remote:string ->
   private_key_file:string ->
   public_key_file:string ->
+  unit ->
   t
 
 module Cluster : sig

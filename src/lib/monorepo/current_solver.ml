@@ -1,5 +1,5 @@
 type resolution = { name : string; version : string } [@@deriving yojson]
-type t = { resolutions : resolution list; repos : Repository.t list }
+type t = { resolutions : resolution list; repos : Common.Repository.t list }
 
 let solver = Solver_pool.spawn_local ()
 
@@ -24,7 +24,7 @@ module Op = struct
     type t = {
       repos : (string * Current_git.Commit.t) list;
       packages : string list;
-      system : Platform.system;
+      system : Common.Platform.system;
     }
 
     let digest { repos; packages; system } =
@@ -37,7 +37,7 @@ module Op = struct
                    (fun (_, commit) -> `String (Current_git.Commit.hash commit))
                    repos) );
             ("packages", `List (List.map (fun p -> `String p) packages));
-            ("system", `String (Fmt.str "%a" Platform.pp_system system));
+            ("system", `String (Fmt.str "%a" Common.Platform.pp_system system));
           ]
       in
       Yojson.to_string json
@@ -71,7 +71,9 @@ module Op = struct
     let repos_git = List.map snd repos in
     with_checkouts ~job repos_git @@ fun dirs ->
     let constraints =
-      [ ("ocaml", Fmt.to_to_string Platform.pp_exact_ocaml system.ocaml) ]
+      [
+        ("ocaml", Fmt.to_to_string Common.Platform.pp_exact_ocaml system.ocaml);
+      ]
     in
     let opam_repos_folders =
       List.combine dirs repos
@@ -93,8 +95,8 @@ module Op = struct
                     arch = "x86_64";
                     os = "linux";
                     os_distribution = "linux";
-                    os_family = Platform.os_family system.os;
-                    os_version = Platform.os_version system.os;
+                    os_family = Common.Platform.os_family system.os;
+                    os_version = Common.Platform.os_version system.os;
                   } );
             ];
         }
