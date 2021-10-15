@@ -27,6 +27,13 @@ dune exec -- mirage-ci \
     --test-mirage-4
 ```
 
+## Local testing
+
+Without any token, it's possible to test the main pipeline.
+```
+dune exec -- mirage-ci-local --test-mirage-3 --test-mirage-4
+```
+
 ## PR testing
 
 To enable commit status reporting, make sure you have the proper authorization on mirage repositories, 

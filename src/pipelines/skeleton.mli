@@ -1,5 +1,5 @@
 val v_main :
-  ocluster:Current_ocluster.t ->
+  config:Common.Config.t ->
   platform:Common.Platform.t ->
   mirage:Current_git.Commit_id.t Current.t ->
   repos:Common.Repository.t list Current.t ->
@@ -8,7 +8,7 @@ val v_main :
 (** Test mirage-skeleton using the current mirage workflow. *)
 
 val v_4 :
-  ocluster:Current_ocluster.t ->
+  config:Common.Config.t ->
   repos:Common.Repository.fetched list Current.t ->
   platform:Common.Platform.t ->
   targets:string list ->

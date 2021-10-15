@@ -7,7 +7,7 @@ open Common
 val lock :
   system:Platform.system ->
   value:string ->
-  ocluster:Current_ocluster.t ->
+  config:Config.t ->
   store:Monorepo.Git_store.t ->
   monorepo:Monorepo.t Current.t ->
   repos:Repository.t list Current.t ->
@@ -23,7 +23,7 @@ val docs :
   unit Current.t
 
 val released :
-  ocluster:Current_ocluster.t ->
+  config:Config.t ->
   platform:Platform.t ->
   roots:Universe.Project.t list ->
   repos:Repository.t list Current.t ->
@@ -32,7 +32,7 @@ val released :
 (** Test the released resolution of the projects. *)
 
 val mirage_edge :
-  ocluster:Current_ocluster.t ->
+  config:Config.t ->
   platform:Platform.t ->
   git_store:Git_store.t ->
   roots:Universe.Project.t list ->
@@ -43,7 +43,7 @@ val mirage_edge :
     everything else in the transitive dependency cone. *)
 
 val universe_edge :
-  ocluster:Current_ocluster.t ->
+  config:Config.t ->
   platform:Platform.t ->
   git_store:Git_store.t ->
   roots:Universe.Project.t list ->

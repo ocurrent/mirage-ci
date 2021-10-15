@@ -1,5 +1,5 @@
 val build :
-  ocluster:Current_ocluster.t ->
+  config:Common.Config.t ->
   platform:Common.Platform.t ->
   base:Common.Spec.t Current.t ->
   project:Current_git.Commit_id.t Current.t ->

@@ -10,7 +10,7 @@ val v :
 val lock :
   key:string ->
   value:string ->
-  cluster:Current_ocluster.t ->
+  config:Common.Config.t ->
   store:Git_store.t ->
   repos:Common.Repository.t list Current.t ->
   opam:Opamfile.t Current.t ->

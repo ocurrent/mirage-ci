@@ -4,8 +4,8 @@ module Spec = Common.Spec
 module Config = Common.Config
 module Platform = Common.Platform
 
-let build ~ocluster ~(platform : Platform.t) ~base ~project ~unikernel ~target
-    () =
+let build ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target ()
+    =
   let spec =
     let+ base = base in
     let open Obuilder_spec in
@@ -33,6 +33,6 @@ let build ~ocluster ~(platform : Platform.t) ~base ~project ~unikernel ~target
   let cache_hint =
     Fmt.str "mirage-ci-skeleton-%a" Platform.pp_system platform.system
   in
-  Config.build ~label ~cache_hint ocluster
+  Config.build ~label ~cache_hint config
     ~pool:(Platform.ocluster_pool platform)
     ~src spec

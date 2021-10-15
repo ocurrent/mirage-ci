@@ -5,7 +5,9 @@ let () = Logging_local.init ()
 let program_name = "mirage-ci"
 let daily = Current_cache.Schedule.v ~valid_for:(Duration.of_day 1) ()
 
-let main config mode (`Pipelines_options mirage_pipelines_options) =
+let main current_config mode config
+    (`Pipelines_options mirage_pipelines_options) =
+  let config = Common.Config.make config in
   let repo_opam =
     Current_git.clone ~schedule:daily
       "https://github.com/ocaml/opam-repository.git"
@@ -22,11 +24,13 @@ let main config mode (`Pipelines_options mirage_pipelines_options) =
     |> Current.list_seq
   in
   let main_ci =
-    Mirage_ci_pipelines.PR.local ~options:mirage_pipelines_options
+    Mirage_ci_pipelines.PR.local ~config ~options:mirage_pipelines_options
       (Repository.current_list_unfetch repos_mirage_main)
   in
 
-  let engine = Current.Engine.create ~config (fun () -> main_ci) in
+  let engine =
+    Current.Engine.create ~config:current_config (fun () -> main_ci)
+  in
   let site =
     let routes = Current_web.routes engine in
     Current_web.Site.(v ~has_role:Current_web.Site.allow_all)
@@ -53,7 +57,12 @@ let main_ci =
 
 let cmd =
   let doc = "an OCurrent pipeline" in
-  ( Term.(const main $ Current.Config.cmdliner $ Current_web.cmdliner $ main_ci),
+  ( Term.(
+      const main
+      $ Current.Config.cmdliner
+      $ Current_web.cmdliner
+      $ Common.Config.cmdliner
+      $ main_ci),
     Term.info program_name ~doc )
 
 let () = Term.(exit @@ eval cmd)

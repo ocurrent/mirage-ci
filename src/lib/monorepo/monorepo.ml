@@ -75,13 +75,13 @@ module Reader : Git_store.Reader with type t = string * string = struct
     Fmt.pf f "Lockfile:\n%s\n\nDev-repo:\n%s\n" lockfile dev_repo
 end
 
-let lock ~key ~cluster ~store ~repos ~opam ~system =
+let lock ~key ~config ~store ~repos ~opam ~system =
   let spec =
     let+ opam = opam and+ repos = repos in
     lock_spec ~system ~repos ~opam |> upload_spec ~store ~branch:key
   in
   let job =
-    Common.Config.build cluster ~pool:"linux-x86_64" ~src:(Current.return [])
+    Common.Config.build config ~pool:"linux-x86_64" ~src:(Current.return [])
       spec
   in
   let k =
@@ -90,10 +90,10 @@ let lock ~key ~cluster ~store ~repos ~opam ~system =
   in
   Git_store.read ~branch:key (module Reader) store k
 
-let lock ~key ~value ~cluster ~store ~repos ~opam ~system _ =
+let lock ~key ~value ~config ~store ~repos ~opam ~system _ =
   let lock =
     let+ lockfile, dev_repos_str =
-      lock ~key ~cluster ~store ~repos ~opam ~system
+      lock ~key ~config ~store ~repos ~opam ~system
     in
     let lockfile = Opamfile.unmarshal lockfile in
     Monorepo_lock.make ~opam_file:lockfile

@@ -82,7 +82,7 @@ let spec ~mode ~repos ~system ~toolchain ~lock =
         ]
         spec
 
-let v ~ocluster ~(platform : Platform.t) ~roots ~mode ?(src = Current.return [])
+let v ~config ~(platform : Platform.t) ~roots ~mode ?(src = Current.return [])
     ?(toolchain = Host) ~repos ~lock () =
   let spec = spec ~system:platform.system ~mode ~repos ~toolchain ~lock in
   let mirage_only = match toolchain with Host -> false | _ -> true in
@@ -118,11 +118,11 @@ let v ~ocluster ~(platform : Platform.t) ~roots ~mode ?(src = Current.return [])
   in
   Config.build
     ~label:(name_of_toolchain ^ "-" ^ name_of_mode)
-    ~cache_hint ocluster
+    ~cache_hint config
     ~pool:(Platform.ocluster_pool platform)
     ~src dune_build
 
-let lock ~(system : Platform.system) ~value ~ocluster ~store ~monorepo ~repos
+let lock ~(system : Platform.system) ~value ~config ~store ~monorepo ~repos
     (projects : Universe.Project.t list) =
   Current.with_context repos (fun () ->
       let configuration =
@@ -134,11 +134,11 @@ let lock ~(system : Platform.system) ~value ~ocluster ~store ~monorepo ~repos
         Fmt.str "monorepo-%a-%s" Platform.pp_system system
           (Opamfile.digest configuration)
       in
-      Monorepo.lock ~key ~value ~cluster:ocluster ~store ~repos ~system
+      Monorepo.lock ~key ~value ~config ~store ~repos ~system
         ~opam:(Current.return configuration)
         monorepo)
 
-let universe_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =
+let universe_edge ~config ~platform ~git_store ~roots ~repos ~lock =
   let src =
     let+ src =
       Monorepo_git_push.v git_store ~branch:"universe-edge-monorepo"
@@ -148,14 +148,14 @@ let universe_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =
   in
   [
     ( "universe-edge-freestanding",
-      v ~ocluster ~platform ~src ~roots ~mode:UniverseEdge
-        ~toolchain:Freestanding ~repos ~lock () );
+      v ~config ~platform ~src ~roots ~mode:UniverseEdge ~toolchain:Freestanding
+        ~repos ~lock () );
     ( "universe-edge-host",
-      v ~ocluster ~platform ~src ~roots ~mode:UniverseEdge ~repos ~lock () );
+      v ~config ~platform ~src ~roots ~mode:UniverseEdge ~repos ~lock () );
   ]
   |> Current.all_labelled
 
-let mirage_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =
+let mirage_edge ~config ~platform ~git_store ~roots ~repos ~lock =
   let filter (project : Monorepo_lock.project) =
     List.exists
       (fun (prj : Universe.Project.t) ->
@@ -171,20 +171,19 @@ let mirage_edge ~ocluster ~platform ~git_store ~roots ~repos ~lock =
   in
   [
     ( "mirage-edge-freestanding",
-      v ~ocluster ~platform ~src ~roots ~mode:MirageEdge ~toolchain:Freestanding
+      v ~config ~platform ~src ~roots ~mode:MirageEdge ~toolchain:Freestanding
         ~repos ~lock () );
     ( "mirage-edge-host",
-      v ~ocluster ~platform ~src ~roots ~mode:MirageEdge ~repos ~lock () );
+      v ~config ~platform ~src ~roots ~mode:MirageEdge ~repos ~lock () );
   ]
   |> Current.all_labelled
 
-let released ~ocluster ~platform ~roots ~repos ~lock =
+let released ~config ~platform ~roots ~repos ~lock =
   [
     ( "released-freestanding",
-      v ~ocluster ~platform ~roots ~mode:Released ~toolchain:Freestanding ~repos
+      v ~config ~platform ~roots ~mode:Released ~toolchain:Freestanding ~repos
         ~lock () );
-    ( "released-host",
-      v ~ocluster ~platform ~roots ~mode:Released ~repos ~lock () );
+    ("released-host", v ~config ~platform ~roots ~mode:Released ~repos ~lock ());
   ]
   |> Current.all_labelled
 
