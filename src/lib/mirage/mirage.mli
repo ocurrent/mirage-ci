@@ -1,4 +1,4 @@
-val build :
+type mirage_builder =
   config:Common.Config.t ->
   platform:Common.Platform.t ->
   base:Common.Spec.t Current.t ->
@@ -7,5 +7,10 @@ val build :
   target:string ->
   unit ->
   unit Current.t
+
+val v_any : mirage_builder
 (** Run the full mirage build process using ocluster. It includes the
     installation of mirage, the configuration step and the build step. *)
+
+val v_4 : mirage_builder
+(** Mirage 4 optimized build *)
