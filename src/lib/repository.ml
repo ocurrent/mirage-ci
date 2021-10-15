@@ -6,7 +6,9 @@ type fetched = string * Current_git.Commit.t
 let pp f (v1, v2) = Fmt.pf f "%s:%a%a" v1 Fmt.cut () Current_git.Commit_id.pp v2
 
 let compare (a1, b1) (a2, b2) =
-  match String.compare a1 a2 with 0 -> Current_git.Commit_id.compare b1 b2 | v -> v
+  match String.compare a1 a2 with
+  | 0 -> Current_git.Commit_id.compare b1 b2
+  | v -> v
 
 let fetch c =
   let open Current.Syntax in

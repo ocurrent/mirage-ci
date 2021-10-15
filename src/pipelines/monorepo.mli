@@ -1,5 +1,5 @@
-(* 
-## MONOREPO PIPELINES
+(*
+   ## MONOREPO PIPELINES
 *)
 open Mirage_ci_lib
 
@@ -12,8 +12,8 @@ val lock :
   repos:Repository.t list Current.t ->
   Universe.Project.t list ->
   Monorepo_lock.t Current.t
-(** [lock ~system ~value ~monorepo ~repos projects] Obtain the lockfile of [projects] using the
-[monorepo] tool with the repositories [repos].    *)
+(** [lock ~system ~value ~monorepo ~repos projects] Obtain the lockfile of
+    [projects] using the [monorepo] tool with the repositories [repos]. *)
 
 val docs :
   system:Platform.system ->
@@ -38,8 +38,8 @@ val mirage_edge :
   repos:Repository.t list Current.t ->
   lock:Monorepo_lock.t Current.t ->
   unit Current.t
-(** Test the main branches of [roots] projects, and released versions for everything else in 
-the transitive dependency cone. *)
+(** Test the main branches of [roots] projects, and released versions for
+    everything else in the transitive dependency cone. *)
 
 val universe_edge :
   ocluster:Current_ocluster.t ->

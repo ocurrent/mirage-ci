@@ -1,5 +1,4 @@
 type resolution = { name : string; version : string } [@@deriving yojson]
-
 type t = { resolutions : resolution list; repos : Repository.t list }
 
 let solver = Solver_pool.spawn_local ()
@@ -33,8 +32,10 @@ module Op = struct
         `Assoc
           [
             ( "repos",
-              `List (List.map (fun (_, commit) -> `String (Current_git.Commit.hash commit)) repos)
-            );
+              `List
+                (List.map
+                   (fun (_, commit) -> `String (Current_git.Commit.hash commit))
+                   repos) );
             ("packages", `List (List.map (fun p -> `String p) packages));
             ("system", `String (Fmt.str "%a" Platform.pp_system system));
           ]
@@ -43,17 +44,15 @@ module Op = struct
   end
 
   module Value = struct
-    type t = { resolutions : resolution list; repos : (string * string) list } [@@deriving yojson]
+    type t = { resolutions : resolution list; repos : (string * string) list }
+    [@@deriving yojson]
 
     let marshal t = t |> to_yojson |> Yojson.Safe.to_string
-
     let unmarshal t = t |> Yojson.Safe.from_string |> of_yojson |> Result.get_ok
   end
 
   let auto_cancel = true
-
   let id = "mirage-ci-solver"
-
   let pp f _ = Fmt.string f "Opam solver"
 
   open Lwt.Syntax
@@ -62,7 +61,8 @@ module Op = struct
     let rec aux acc = function
       | [] -> fn (List.rev acc)
       | commit :: next ->
-          Current_git.with_checkout ~job commit (fun tmpdir -> aux (tmpdir :: acc) next)
+          Current_git.with_checkout ~job commit (fun tmpdir ->
+              aux (tmpdir :: acc) next)
     in
     aux [] commits
 
@@ -70,7 +70,9 @@ module Op = struct
     let* () = Current.Job.start ~level:Harmless job in
     let repos_git = List.map snd repos in
     with_checkouts ~job repos_git @@ fun dirs ->
-    let constraints = [ ("ocaml", Fmt.to_to_string Platform.pp_exact_ocaml system.ocaml) ] in
+    let constraints =
+      [ ("ocaml", Fmt.to_to_string Platform.pp_exact_ocaml system.ocaml) ]
+    in
     let opam_repos_folders =
       List.combine dirs repos
       |> List.map (fun (dir, (name, repo)) ->

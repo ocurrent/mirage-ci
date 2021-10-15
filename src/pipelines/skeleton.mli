@@ -16,5 +16,5 @@ val v_4 :
   targets:string list ->
   Current_git.Commit.t Current.t ->
   unit Current.t
-(** Pipeline optimized for mirage 4, using opam-monorepo to track if 
-resolutions changes. *)
+(** Pipeline optimized for mirage 4, using opam-monorepo to track if resolutions
+    changes. *)

@@ -13,7 +13,8 @@ open Cmdliner
 let git_ssh_host =
   Arg.required
   @@ Arg.opt Arg.(some string) None
-  @@ Arg.info ~doc:"The git SSH host to store the transient data" ~docv:"HOST" [ "git-ssh-host" ]
+  @@ Arg.info ~doc:"The git SSH host to store the transient data" ~docv:"HOST"
+       [ "git-ssh-host" ]
 
 let git_ssh_port =
   Arg.value
@@ -23,23 +24,28 @@ let git_ssh_port =
 let git_ssh_repository =
   Arg.required
   @@ Arg.opt Arg.(some string) None
-  @@ Arg.info ~doc:"The git repository to store the transient data on the specified host"
+  @@ Arg.info
+       ~doc:
+         "The git repository to store the transient data on the specified host"
        ~docv:"REPO" [ "git-ssh-repo" ]
 
 let git_http_remote =
   Arg.required
   @@ Arg.opt Arg.(some string) None
-  @@ Arg.info ~doc:"The public http remote for the storage repository" ~docv:"HOST" [ "git-http-remote" ]
-        
+  @@ Arg.info ~doc:"The public http remote for the storage repository"
+       ~docv:"HOST" [ "git-http-remote" ]
+
 let private_key_file =
   Arg.required
   @@ Arg.opt Arg.(some string) None
-  @@ Arg.info ~doc:"A private key to use to access the remote" ~docv:"FILE" [ "privkey" ]
+  @@ Arg.info ~doc:"A private key to use to access the remote" ~docv:"FILE"
+       [ "privkey" ]
 
 let public_key_file =
   Arg.required
   @@ Arg.opt Arg.(some string) None
-  @@ Arg.info ~doc:"A public key to use to access the remote" ~docv:"FILE" [ "pubkey" ]
+  @@ Arg.info ~doc:"A public key to use to access the remote" ~docv:"FILE"
+       [ "pubkey" ]
 
 let load_file path =
   try
@@ -49,7 +55,8 @@ let load_file path =
     close_in ch;
     data
   with ex ->
-    if Sys.file_exists path then failwith @@ Fmt.str "Error loading %S: %a" path Fmt.exn ex
+    if Sys.file_exists path then
+      failwith @@ Fmt.str "Error loading %S: %a" path Fmt.exn ex
     else failwith @@ Fmt.str "File %S does not exist" path
 
 let v ssh_host ssh_port ssh_repo http_remote private_key_file public_key_file =
@@ -65,20 +72,26 @@ let v ssh_host ssh_port ssh_repo http_remote private_key_file public_key_file =
 
 let cmdliner =
   Term.(
-    const v $ git_ssh_host $ git_ssh_port $ git_ssh_repository $ git_http_remote
-    $ private_key_file $ public_key_file)
+    const v
+    $ git_ssh_host
+    $ git_ssh_port
+    $ git_ssh_repository
+    $ git_http_remote
+    $ private_key_file
+    $ public_key_file)
 
-let v ~ssh_host ?ssh_port ~ssh_repo ~http_remote ~private_key_file ~public_key_file =
+let v ~ssh_host ?ssh_port ~ssh_repo ~http_remote ~private_key_file
+    ~public_key_file =
   v ssh_host ssh_port ssh_repo http_remote private_key_file public_key_file
 
 let remote t = Fmt.str "git@%s:%s" t.ssh_host t.ssh_repo
-
 let http_remote t = t.http_remote
 
 let git_checkout_or_create b =
   Fmt.str
-    "(git remote set-branches --add origin %s && git fetch origin %s && git checkout --track \
-     origin/%s) || (git checkout -b %s && git push --set-upstream origin %s)"
+    "(git remote set-branches --add origin %s && git fetch origin %s && git \
+     checkout --track origin/%s) || (git checkout -b %s && git push \
+     --set-upstream origin %s)"
     b b b b b
 
 module Cluster = struct
@@ -104,27 +117,29 @@ module Cluster = struct
 
   let clone ~branch ~directory t =
     Obuilder_spec.run ~network:[ "host" ] ~secrets
-      "git clone --single-branch %s %s && cd %s && (%s)" (remote t) directory directory
+      "git clone --single-branch %s %s && cd %s && (%s)" (remote t) directory
+      directory
       (git_checkout_or_create branch)
 
   let push ?(force = false) _ =
-    Obuilder_spec.run ~network:[ "host" ] ~secrets (if force then "git push -f" else "git push")
+    Obuilder_spec.run ~network:[ "host" ] ~secrets
+      (if force then "git push -f" else "git push")
 
   let secrets t =
-    [ ("ssh_privkey", t.private_key); ("ssh_pubkey", t.public_key); ("ssh_config", config t) ]
+    [
+      ("ssh_privkey", t.private_key);
+      ("ssh_pubkey", t.public_key);
+      ("ssh_config", config t);
+    ]
 end
 
 module type Reader = sig
   type t
 
   val pp : t Fmt.t
-
   val id : string
-
   val fn : Fpath.t -> t Lwt.t
-
   val marshal : t -> string
-
   val unmarshal : string -> t
 end
 
@@ -152,10 +167,13 @@ let sync ~job t =
   let* () = Current.Job.use_pool ~switch job t.pool in
   let* result =
     match Bos.OS.Path.exists state_folder with
-    | Error _ -> Fmt.failwith "Failed to look for git folder %a" Fpath.pp state_folder
+    | Error _ ->
+        Fmt.failwith "Failed to look for git folder %a" Fpath.pp state_folder
     | Ok false ->
         Current.Process.exec ~cancellable:false ~job
-          ("", [| "git"; "clone"; "--bare"; repo; Fpath.to_string state_folder |])
+          ( "",
+            [| "git"; "clone"; "--bare"; repo; Fpath.to_string state_folder |]
+          )
     | Ok true ->
         Current.Process.exec ~cwd:state_folder ~cancellable:false ~job
           ("", [| "git"; "fetch"; "-f"; "origin"; "*:*" |])
@@ -172,7 +190,11 @@ let with_clone ~job ~branch store fn =
     Current.Process.exec ~cancellable:false ~job
       ( "",
         [|
-          "git"; "clone"; "--single-branch"; Fpath.to_string state_folder; Fpath.to_string tmpdir;
+          "git";
+          "clone";
+          "--single-branch";
+          Fpath.to_string state_folder;
+          Fpath.to_string tmpdir;
         |] )
   in
   let** () =
@@ -187,11 +209,9 @@ let with_clone ~job ~branch store fn =
 
 module ReadOp (R : Reader) = struct
   type store = t
-
   type t = No_context
 
   let pp f _ = Fmt.pf f "git store"
-
   let id = "git-store-" ^ R.id
 
   module Key = struct
@@ -217,7 +237,8 @@ module ReadOp (R : Reader) = struct
     Lwt.return_ok result
 end
 
-let read (type a) ~branch (module R : Reader with type t = a) store key : a Current.t =
+let read (type a) ~branch (module R : Reader with type t = a) store key :
+    a Current.t =
   let module Read = ReadOp (R) in
   let module Cache = Current_cache.Make (Read) in
   let open Current.Syntax in

@@ -17,7 +17,8 @@ module Selection = struct
   type t = {
     id : string;  (** The platform ID from the request. *)
     packages : string list;  (** The selected packages ("name.version"). *)
-    commits : (string * string) list;  (** Commits in opam-repositories to use. *)
+    commits : (string * string) list;
+        (** Commits in opam-repositories to use. *)
   }
   [@@deriving yojson, ord]
 end
@@ -28,7 +29,8 @@ module Solve_request = struct
     opam_repos_folders : (string * string * string) list;
         (** Opam repositories to use: name, folder, commit *)
     pkgs : string list;  (** Name of packages to solve. *)
-    constraints : (string * string) list;  (** Version locks: package, version *)
+    constraints : (string * string) list;
+        (** Version locks: package, version *)
     platforms : (string * Vars.t) list;  (** Possible build platforms, by ID. *)
   }
   [@@deriving yojson]
@@ -36,7 +38,8 @@ end
 
 (** The response from the solver. *)
 module Solve_response = struct
-  type ('a, 'b) result = ('a, 'b) Stdlib.result = Ok of 'a | Error of 'b [@@deriving yojson]
+  type ('a, 'b) result = ('a, 'b) Stdlib.result = Ok of 'a | Error of 'b
+  [@@deriving yojson]
 
   type t = (Selection.t list, [ `Msg of string ]) result [@@deriving yojson]
 end

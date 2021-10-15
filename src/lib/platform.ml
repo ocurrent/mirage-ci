@@ -16,7 +16,10 @@ type os = Debian | Ubuntu | Fedora
 
 let os_version = function Ubuntu -> "20.04" | Fedora -> "33" | Debian -> "10"
 
-let os_family = function Ubuntu -> "ubuntu" | Fedora -> "fedora" | Debian -> "debian"
+let os_family = function
+  | Ubuntu -> "ubuntu"
+  | Fedora -> "fedora"
+  | Debian -> "debian"
 
 let pp_os f t = Fmt.pf f "%s-%s" (os_family t) (os_version t)
 
@@ -27,7 +30,6 @@ let arch_to_string = function Arm64 -> "arm64" | Amd64 -> "x86_64"
 type system = { ocaml : ocaml_version; os : os }
 
 let pp_system f { ocaml; os } = Fmt.pf f "%a-ocaml-%a" pp_os os pp_ocaml ocaml
-
 let spec t = Spec.make @@ Fmt.str "ocaml/opam:%a" pp_system t
 
 type t = { system : system; arch : arch }
@@ -38,23 +40,32 @@ let platform_id t =
   | Amd64 -> "x86_64-" ^ Fmt.str "%a" pp_system t.system
 
 let pp_platform f t =
-  Fmt.pf f "%s / %a / %a" (arch_to_string t.arch) pp_os t.system.os pp_ocaml t.system.ocaml
+  Fmt.pf f "%s / %a / %a" (arch_to_string t.arch) pp_os t.system.os pp_ocaml
+    t.system.ocaml
 
-let ocluster_pool { arch; _ } = match arch with Arm64 -> "linux-arm64" | Amd64 -> "linux-x86_64"
+let ocluster_pool { arch; _ } =
+  match arch with Arm64 -> "linux-arm64" | Amd64 -> "linux-x86_64"
 
 (* Base configuration.. *)
 
+let platform_v412_amd64 =
+  { system = { ocaml = V4_12; os = Debian }; arch = Amd64 }
 
-let platform_v412_amd64 = { system = { ocaml = V4_12; os = Debian }; arch = Amd64 }
+let platform_v412_arm64 =
+  { system = { ocaml = V4_12; os = Debian }; arch = Arm64 }
 
-let platform_v412_arm64 = { system = { ocaml = V4_12; os = Debian }; arch = Arm64 }
+let platform_v413_amd64 =
+  { system = { ocaml = V4_13; os = Debian }; arch = Amd64 }
 
-let platform_v413_amd64 = { system = { ocaml = V4_13; os = Debian }; arch = Amd64 }
-
-let platform_v413_arm64 = { system = { ocaml = V4_13; os = Debian }; arch = Arm64 }
+let platform_v413_arm64 =
+  { system = { ocaml = V4_13; os = Debian }; arch = Arm64 }
 
 let platform_host =
   Bos.Cmd.(v "uname" % "-m")
-  |> Bos.OS.Cmd.run_out |> Bos.OS.Cmd.out_string |> Result.to_option
-  |> Option.map (function ("aarch64" | "arm64"), _ -> platform_v413_arm64 | _ -> platform_v413_amd64)
+  |> Bos.OS.Cmd.run_out
+  |> Bos.OS.Cmd.out_string
+  |> Result.to_option
+  |> Option.map (function
+       | ("aarch64" | "arm64"), _ -> platform_v413_arm64
+       | _ -> platform_v413_amd64)
   |> Option.value ~default:platform_v413_amd64
