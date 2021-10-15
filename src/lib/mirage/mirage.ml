@@ -47,8 +47,7 @@ let v_any ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target ()
     ~pool:(Platform.ocluster_pool platform)
     ~src spec
 
-let v_4 ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target
-    () =
+let v_4 ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
   let spec =
     let+ base = base in
     let open Obuilder_spec in
@@ -60,11 +59,12 @@ let v_4 ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target
       |> Spec.children ~name:"mirage-tool" switch_with_mirage
       |> Spec.add
            [
-             workdir "/src";
              copy [ "./" ^ unikernel ^ "/config.ml" ] ~dst:"/src/";
              copy ~from:(`Build "mirage-tool")
-               [ "/home/opam/.opam/4.13/" ]
-               ~dst:"/home/opam/.opam/4.13/";
+               [ "/home/opam/.opam/4.13" ]
+               ~dst:"/home/opam/.opam/4.13";
+             workdir "/src";
+             run "sudo chown -R opam:opam .";
              run "opam exec -- mirage configure -t %s" target;
            ]
       |> Spec.finish
@@ -86,8 +86,8 @@ let v_4 ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target
              workdir "/src";
              copy ~from:(`Build "mirage-configured") [ "/src" ] ~dst:"/src";
              copy ~from:(`Build "mirage-tools")
-               [ "/home/opam/.opam/4.13/" ]
-               ~dst:"/home/opam/.opam/4.13/";
+               [ "/home/opam/.opam/4.13" ]
+               ~dst:"/home/opam/.opam/4.13";
              env "DUNE_CACHE" "enabled";
              env "DUNE_CACHE_TRANSPORT" "direct";
              run
@@ -107,8 +107,8 @@ let v_4 ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target
            copy [ "./" ^ unikernel ] ~dst:"/src";
            copy ~from:(`Build "mirage-depends") [ "/src" ] ~dst:"/src";
            copy ~from:(`Build "mirage-depends")
-             [ "/home/opam/.opam/4.13/" ]
-             ~dst:"/home/opam/.opam/4.13/";
+             [ "/home/opam/.opam/4.13" ]
+             ~dst:"/home/opam/.opam/4.13";
            run
              ~cache:[ Setup.opam_download_cache ]
              ~network:[ "host" ] "make depends";
