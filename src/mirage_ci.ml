@@ -1,4 +1,5 @@
-open Mirage_ci_lib
+open Monorepo_lib
+open Common
 module Github = Current_github
 module Git = Current_git
 
@@ -26,17 +27,10 @@ let gh_head_of github name ref =
       Github.Api.head_of github name ref
       |> Current.map Current_github.Api.Commit.id
 
-let main config github mode auth store (`Ocluster_cap cap)
+let main current_config github mode auth store config
     (`Test_monorepos monorepos) (`Pipelines_options mirage_pipelines_options) =
-  let vat = Capnp_rpc_unix.client_only_vat () in
-  let submission_cap = Capnp_rpc_unix.Vat.import_exn vat cap in
-  let connection =
-    Current_ocluster.Connection.create ~max_pipeline:20 submission_cap
-  in
-  let ocluster =
-    Current_ocluster.v
-      ~secrets:(Git_store.Cluster.secrets store)
-      ~urgent:`Never connection
+  let config =
+    Common.Config.make ~secrets:(Git_store.Cluster.secrets store) config
   in
 
   let repo_mirage_dev =
@@ -70,9 +64,8 @@ let main config github mode auth store (`Ocluster_cap cap)
       in
       let monorepo = Monorepo.v ~system:platform.system ~repos in
       let monorepo_lock =
-        Mirage_ci_pipelines.Monorepo.lock ~ocluster ~store
-          ~system:platform.system ~value:"universe" ~monorepo
-          ~repos:repos_unfetched roots
+        Mirage_ci_pipelines.Monorepo.lock ~config ~store ~system:platform.system
+          ~value:"universe" ~monorepo ~repos:repos_unfetched roots
       in
       Current.with_context repos @@ fun () ->
       let mirage_released =
@@ -89,9 +82,9 @@ let main config github mode auth store (`Ocluster_cap cap)
       in
       Current.all_labelled
         [
-          ("mirage-released", mirage_released ~ocluster);
-          ("mirage-edge", mirage_edge ~ocluster);
-          ("universe-edge", universe_edge ~ocluster);
+          ("mirage-released", mirage_released ~config);
+          ("mirage-edge", mirage_edge ~config);
+          ("universe-edge", universe_edge ~config);
         ]
     else Current.return ~label:"disabled" ()
   in
@@ -113,8 +106,8 @@ let main config github mode auth store (`Ocluster_cap cap)
           |> Current.list_seq
         in
         Some
-          (Mirage_ci_pipelines.PR.make ~ocluster
-             ~options:mirage_pipelines_options github
+          (Mirage_ci_pipelines.PR.make ~config ~options:mirage_pipelines_options
+             github
              (Repository.current_list_unfetch repos_mirage_main))
   in
   let main_ci, main_routes =
@@ -126,7 +119,7 @@ let main config github mode auth store (`Ocluster_cap cap)
   in
 
   let engine =
-    Current.Engine.create ~config (fun () ->
+    Current.Engine.create ~config:current_config (fun () ->
         Current.all_labelled (("monorepos", monorepos) :: main_ci))
   in
   let has_role = if auth = None then Current_web.Site.allow_all else has_role in
@@ -153,13 +146,6 @@ let main config github mode auth store (`Ocluster_cap cap)
 open Cmdliner
 
 let named f = Cmdliner.Term.(app (const f))
-
-let ocluster_cap =
-  Arg.required
-  @@ Arg.opt Arg.(some Capnp_rpc_unix.sturdy_uri) None
-  @@ Arg.info ~doc:"The ocluster submission capability file" ~docv:"FILE"
-       [ "ocluster-cap" ]
-  |> named (fun x -> `Ocluster_cap x)
 
 let test_monorepos =
   Arg.value
@@ -197,7 +183,7 @@ let cmd =
       $ Current_web.cmdliner
       $ Current_github.Auth.cmdliner
       $ Git_store.cmdliner
-      $ ocluster_cap
+      $ Common.Config.cmdliner
       $ test_monorepos
       $ main_ci),
     Term.info program_name ~doc )

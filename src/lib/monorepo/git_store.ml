@@ -81,7 +81,7 @@ let cmdliner =
     $ public_key_file)
 
 let v ~ssh_host ?ssh_port ~ssh_repo ~http_remote ~private_key_file
-    ~public_key_file =
+    ~public_key_file () =
   v ssh_host ssh_port ssh_repo http_remote private_key_file public_key_file
 
 let remote t = Fmt.str "git@%s:%s" t.ssh_host t.ssh_repo

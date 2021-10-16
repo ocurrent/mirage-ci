@@ -11,7 +11,7 @@ val test_options_cmdliner : test_options Cmdliner.Term.t
 val is_enabled : test_options -> bool
 
 val make :
-  ocluster:Current_ocluster.t ->
+  config:Common.Config.t ->
   options:test_options ->
   Github.Api.t ->
   (string * Git.Commit_id.t) list Current.t ->
@@ -19,3 +19,9 @@ val make :
 
 val to_current : t -> unit Current.t
 val routes : t -> Current_web.Resource.t Routes.route list
+
+val local :
+  config:Common.Config.t ->
+  options:test_options ->
+  (string * Git.Commit_id.t) list Current.t ->
+  unit Current.t

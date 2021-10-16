@@ -1,6 +1,7 @@
 (library
  (name solver_api)
- (libraries capnp-rpc-lwt current_rpc ppx_deriving_yojson.runtime)
+ (libraries capnp-rpc-lwt current_rpc ppx_deriving_yojson.runtime capnp
+   stdint lwt fmt result)
  (flags
   (:standard -w -53-55))
  (preprocess
