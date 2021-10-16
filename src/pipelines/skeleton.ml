@@ -58,15 +58,16 @@ let test_stage ~stage ~unikernels ~target ~platform ~run_test configuration =
 
 let multi_stage_test ~platform ~targets ~configure ~run_test mirage_skeleton =
   let* stages = Skeleton.stages mirage_skeleton in
+  let n_stages = List.length stages in
   let rec aux ~target skeleton = function
     | [] -> skeleton |> Current.ignore_value
     | (name, stage, unikernels) :: q ->
         let configuration = configure skeleton in
+        let key = Fmt.str "Test stage %s (%d)" name n_stages in
         let test_stage =
           test_stage ~run_test ~stage ~unikernels ~target ~platform
             configuration
-          |> Current.collapse ~key:("Test stage " ^ name) ~value:target
-               ~input:skeleton
+          |> Current.collapse ~key ~value:target ~input:skeleton
         in
         let mirage_skeleton =
           let+ _ = test_stage and+ skeleton = skeleton in

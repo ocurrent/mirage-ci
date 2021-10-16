@@ -402,17 +402,21 @@ let make ~config ~options github repos =
   { pipeline = Current.all_labelled pipelines; specs = List.concat specs }
 
 let local ~config ~options repos =
-  let github_setup { branch; org; name } =
-    Github.Api.Anonymous.head_of { owner = org; name }
-      (`Ref ("refs/heads/" ^ branch))
-  in
+  let setup { branch; name; _ } = (name, branch) in
   let pipelines =
     tests options
     |> List.map (fun { name; mirage; mirage_dev; mirage_skeleton; build; _ } ->
-           let mirage = github_setup mirage in
-           let mirage_skeleton = github_setup mirage_skeleton in
-           let mirage_dev = Option.map github_setup mirage_dev in
-
+           let grefs =
+             List.map setup [ mirage; mirage_skeleton ]
+             @ match mirage_dev with None -> [] | Some m -> [ setup m ]
+           in
+           let repos = repos grefs in
+           let find_repo (m : repo) = Current.map (List.assoc m.name) repos in
+           let mirage = find_repo mirage in
+           let mirage_skeleton = find_repo mirage_skeleton in
+           let mirage_dev =
+             match mirage_dev with None -> None | Some m -> Some (find_repo m)
+           in
            ( name,
              perform_test ?mirage_dev ~build ~config
                ~platform:Common.Platform.platform_host ~mirage_skeleton ~mirage

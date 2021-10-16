@@ -14,4 +14,4 @@
  (modules mirage_ci_local logging_local)
  (libraries common mirage_ci_pipelines duration current current.cache
    current_git current_github current_web astring cmdliner fmt.tty logs.fmt
-   lwt lwt.unix))
+   lwt lwt.unix fpath))
