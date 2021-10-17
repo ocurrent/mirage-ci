@@ -47,7 +47,8 @@ let main current_config mode config
       |> Current.list_seq
       |> Repository.current_list_unfetch
     in
-    Mirage_ci_pipelines.PR.local ~config ~options:mirage_pipelines_options repos
+    Mirage_ci_pipelines.Skeleton.local ~config ~options:mirage_pipelines_options
+      repos
   in
   let engine =
     Current.Engine.create ~config:current_config (fun () -> main_ci)
@@ -124,7 +125,7 @@ let mirage_dev =
     Arg.(value & opt string default & info ~doc ~docv [ "mirage-dev" ])
 
 let main_ci =
-  Mirage_ci_pipelines.PR.test_options_cmdliner
+  Mirage_ci_pipelines.Skeleton.test_options_cmdliner
   |> named (fun x -> `Pipelines_options x)
 
 let cmd : unit Current.or_error Term.t * Term.info =

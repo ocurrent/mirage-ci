@@ -8,7 +8,7 @@ type mirage_builder =
   unit ->
   unit Current.t
 
-val v_any : mirage_builder
+val v_3 : mirage_builder
 (** Run the full mirage build process using ocluster. It includes the
     installation of mirage, the configuration step and the build step. *)
 

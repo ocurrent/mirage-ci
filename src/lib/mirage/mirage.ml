@@ -14,8 +14,7 @@ type mirage_builder =
   unit ->
   unit Current.t
 
-let v_any ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target ()
-    =
+let v_3 ~config ~(platform : Platform.t) ~base ~project ~unikernel ~target () =
   let spec =
     let+ base = base in
     let open Obuilder_spec in

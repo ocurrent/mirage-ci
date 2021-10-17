@@ -16,7 +16,6 @@ type test = { platform : Platform.t; unikernel : string; target : string }
 
 type configuration_main = {
   build : Mirage.mirage_builder;
-  mirage : Current_git.Commit_id.t Current.t;
   repos : Repository.t list Current.t;
   skeleton : Current_git.Commit_id.t Current.t;
 }
@@ -26,16 +25,6 @@ let run_test_mirage_main ~config { unikernel; platform; target } configuration =
   let base =
     let+ repos = c.repos in
     Platform.spec platform.system |> Spec.add (Setup.add_repositories repos)
-  in
-  let base =
-    let+ base = base and+ mirage = c.mirage in
-    (* pre-install ocaml-freestanding *)
-    Spec.add (Setup.install_tools [ "ocaml-freestanding" ]) base
-    |> Spec.add
-         [
-           Obuilder_spec.run ~network:Setup.network "opam pin -n -y %s"
-             (Setup.remote_uri mirage);
-         ]
   in
   c.build ~config ~platform ~base ~project:c.skeleton ~unikernel ~target ()
   |> Current.collapse
@@ -82,11 +71,71 @@ let multi_stage_test ~platform ~targets ~configure ~run_test mirage_skeleton =
 
 (* MIRAGE MAIN TEST *)
 
-let v ~build ~config ~platform ~mirage ~repos mirage_skeleton =
+let v ~build ~config ~platform ~repos mirage_skeleton =
   let mirage_skeleton = Current_git.fetch mirage_skeleton in
   multi_stage_test ~platform ~targets
     ~run_test:(run_test_mirage_main ~config)
     ~configure:(fun skeleton ->
       let skeleton = Current.map Current_git.Commit.id skeleton in
-      { mirage; repos; skeleton; build })
+      { repos; skeleton; build })
     mirage_skeleton
+
+type repo = { name : string; branch : string }
+
+type test_set = {
+  name : string;
+  mirage_skeleton : repo;
+  mirage_dev : repo;
+  build : Mirage_lib.Mirage.mirage_builder;
+}
+
+type test_options = { mirage_4 : bool; mirage_3 : bool }
+
+let test_options_cmdliner =
+  let open Cmdliner in
+  let mirage_4 = Arg.(value & flag & info [ "test-mirage-4" ]) in
+  let mirage_3 = Arg.(value & flag & info [ "test-mirage-3" ]) in
+  let make mirage_3 mirage_4 = { mirage_3; mirage_4 } in
+  Term.(const make $ mirage_3 $ mirage_4)
+
+let tests options =
+  let m4 =
+    if options.mirage_4 then
+      [
+        {
+          name = "mirage-4";
+          mirage_dev = { name = "mirage-dev"; branch = "master" };
+          mirage_skeleton = { name = "mirage-skeleton"; branch = "mirage-dev" };
+          build = Mirage_lib.Mirage.v_4;
+        };
+      ]
+    else []
+  in
+  let m3 =
+    if options.mirage_3 then
+      [
+        {
+          name = "mirage-3";
+          mirage_dev = { name = "mirage-dev"; branch = "3" };
+          mirage_skeleton = { name = "mirage-skeleton"; branch = "master" };
+          build = Mirage_lib.Mirage.v_3;
+        };
+      ]
+    else []
+  in
+  m3 @ m4
+
+let local ~config ~options repos =
+  let setup { branch; name } = (name, branch) in
+  let pipelines =
+    tests options
+    |> List.map (fun { name; mirage_dev; mirage_skeleton; build; _ } ->
+           let grefs = List.map setup [ mirage_dev; mirage_skeleton ] in
+           let repos = repos grefs in
+           let find_repo (m : repo) = Current.map (List.assoc m.name) repos in
+           let mirage_skeleton = find_repo mirage_skeleton in
+           ( name,
+             v ~build ~config ~platform:Common.Platform.platform_host ~repos
+               mirage_skeleton ))
+  in
+  Current.all_labelled pipelines

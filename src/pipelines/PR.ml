@@ -88,13 +88,17 @@ let perform_test ?mirage_dev ~build ~config ~platform ~mirage_skeleton ~mirage
     ~repos () =
   let open Current.Syntax in
   let repos =
+    let+ repos = repos and+ mirage = mirage in
+    repos @ [ ("mirage-dev", mirage) ]
+  in
+  let repos =
     match mirage_dev with
     | None -> repos
     | Some mirage_dev ->
         let+ repos = repos and+ mirage_dev = mirage_dev in
         repos @ [ ("mirage-dev", mirage_dev) ]
   in
-  Skeleton.v ~build ~config ~platform ~mirage ~repos mirage_skeleton
+  Skeleton.v ~build ~config ~platform ~repos mirage_skeleton
 
 let perform_test_and_report_status ?mirage_dev ~build ~config ~commit_status
     ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit =
@@ -362,7 +366,7 @@ let tests options =
             Some { org = "mirage"; name = "mirage-dev"; branch = "3" };
           mirage_skeleton =
             { org = "mirage"; name = "mirage-skeleton"; branch = "master" };
-          build = Mirage_lib.Mirage.v_any;
+          build = Mirage_lib.Mirage.v_3;
         })
       options.mirage_3
   in
@@ -400,29 +404,6 @@ let make ~config ~options github repos =
     |> List.split
   in
   { pipeline = Current.all_labelled pipelines; specs = List.concat specs }
-
-let local ~config ~options repos =
-  let setup { branch; name; _ } = (name, branch) in
-  let pipelines =
-    tests options
-    |> List.map (fun { name; mirage; mirage_dev; mirage_skeleton; build; _ } ->
-           let grefs =
-             List.map setup [ mirage; mirage_skeleton ]
-             @ match mirage_dev with None -> [] | Some m -> [ setup m ]
-           in
-           let repos = repos grefs in
-           let find_repo (m : repo) = Current.map (List.assoc m.name) repos in
-           let mirage = find_repo mirage in
-           let mirage_skeleton = find_repo mirage_skeleton in
-           let mirage_dev =
-             match mirage_dev with None -> None | Some m -> Some (find_repo m)
-           in
-           ( name,
-             perform_test ?mirage_dev ~build ~config
-               ~platform:Common.Platform.platform_host ~mirage_skeleton ~mirage
-               ~repos () ))
-  in
-  Current.all_labelled pipelines
 
 let to_current t = t.pipeline
 
