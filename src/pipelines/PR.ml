@@ -94,7 +94,13 @@ let perform_test ?mirage_dev ~build ~config ~platform ~mirage_skeleton ~mirage
         let+ repos = repos and+ mirage_dev = mirage_dev in
         repos @ [ ("mirage-dev", mirage_dev) ]
   in
-  Skeleton.v ~build ~config ~platform ~mirage ~repos mirage_skeleton
+  Current.all_labelled
+    [
+      ( "multi-stage",
+        Skeleton.v ~build ~config ~platform ~mirage ~repos mirage_skeleton );
+      ( "all-in-one",
+        Skeleton.all_in_one_test ~platform ~repos ~config mirage_skeleton );
+    ]
 
 let perform_test_and_report_status ?mirage_dev ~build ~config ~commit_status
     ~platform ~mirage_skeleton ~mirage ~repos kind gh_commit =
@@ -412,7 +418,6 @@ let local ~config ~options repos =
            let mirage = github_setup mirage in
            let mirage_skeleton = github_setup mirage_skeleton in
            let mirage_dev = Option.map github_setup mirage_dev in
-
            ( name,
              perform_test ?mirage_dev ~build ~config
                ~platform:Common.Platform.platform_host ~mirage_skeleton ~mirage
