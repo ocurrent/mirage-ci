@@ -91,24 +91,25 @@ let v ~build ~config ~platform ~mirage ~repos mirage_skeleton =
     mirage_skeleton
 
 (* Test all of mirage-skeleton at once *)
-let all_in_one_test ~(platform : Platform.t) ~target ~repos ~config
-    mirage_skeleton =
+let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage_overlay
+    ~config mirage_skeleton =
   let spec =
-    let+ repos = repos in
+    let+ repos = repos and+ mirage_overlay = mirage_overlay in
     let open Obuilder_spec in
     Platform.spec platform.system
     |> Spec.add (Setup.add_repositories repos)
-    |> Spec.add (Setup.install_tools [ "mirage"; "opam-monorepo" ])
+    |> Spec.add (Setup.install_tools [ "mirage" ])
     |> Spec.add
          [
            copy [ "." ] ~dst:"/src/";
            env "MODE" target;
            workdir "/src/";
            run "opam exec -- make configure";
+           env "OVERLAY" (Setup.remote_uri mirage_overlay);
+           run ~network:[ "host" ] "opam exec -- make lock";
            run
              ~cache:[ Setup.opam_download_cache ]
              ~network:[ "host" ] "opam exec -- make depends";
-           run ~network:[ "host" ] "opam exec -- make lock";
            run
              ~cache:[ Setup.opam_download_cache ]
              ~network:[ "host" ] "opam exec -- make pull";
@@ -129,10 +130,12 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~config
     ~pool:(Platform.ocluster_pool platform)
     ~src spec
 
-let all_in_one_test ~(platform : Platform.t) ~repos ~config mirage_skeleton =
+let all_in_one_test ~(platform : Platform.t) ~repos ~mirage_overlay ~config
+    mirage_skeleton =
   targets
   |> List.filter (is_available_on platform)
   |> List.map (fun target ->
          ( target,
-           all_in_one_test ~target ~platform ~repos ~config mirage_skeleton ))
+           all_in_one_test ~target ~platform ~repos ~mirage_overlay ~config
+             mirage_skeleton ))
   |> Current.all_labelled

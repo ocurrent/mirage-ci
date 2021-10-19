@@ -13,8 +13,9 @@ val is_enabled : test_options -> bool
 val make :
   config:Common.Config.t ->
   options:test_options ->
+  repos:(string * Git.Commit_id.t) list Current.t ->
+  mirage_overlay:Git.Commit_id.t Current.t ->
   Github.Api.t ->
-  (string * Git.Commit_id.t) list Current.t ->
   t
 
 val to_current : t -> unit Current.t
@@ -23,5 +24,6 @@ val routes : t -> Current_web.Resource.t Routes.route list
 val local :
   config:Common.Config.t ->
   options:test_options ->
-  (string * Git.Commit_id.t) list Current.t ->
+  repos:(string * Git.Commit_id.t) list Current.t ->
+  mirage_overlay:Git.Commit_id.t Current.t ->
   unit Current.t
