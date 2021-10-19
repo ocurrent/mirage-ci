@@ -27,6 +27,37 @@ dune exec -- mirage-ci \
     --test-mirage-4
 ```
 
+## Deploying
+
+On ci.mirage.io, the git service is already set up. Otherwise the docker-compose.yml file can be used (might be outdated).
+
+```
+$ git clone -b live https://github.com/ocurrent/mirage-ci.git
+$ cd mirage-ci
+$ docker build . -t mirage-ci
+$ docker service create \
+  --name infra_mirage-ci \
+  -p 8082:8080 \
+  -e CI_PROFILE=production \
+  --mount type=bind,ro,source=/home/camel/.ssh,destination=/ssh \
+  --mount type=bind,ro,source=/home/camel/mirage-ci/cap,destination=/cap \
+  --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock \
+  --mount type=volume,source=mirage-ci,destination=/var/lib/ocurrent \
+  mirage-ci \
+  --ocluster-cap /cap/mirage-ci.cap \
+  --github-token-file /cap/github_mirage \
+  --git-ssh-host ci.mirage.io \
+  --git-ssh-repo mirage-ci/mirage-monorepo.git \
+  --git-ssh-port 10022 \
+  --git-http-remote=https://ci.mirage.io/git/mirage-ci/mirage-ci-monorepo.git \
+  --privkey /ssh/git \
+  --pubkey /ssh/git.pub \
+  --test-mirage-4 mirage,skeleton,dev \
+  --test-mirage-3 mirage,skeleton,dev \
+  --test-monorepos \
+  --self-deploy
+```
+
 ## Local testing
 
 Without any token, it's possible to test the main pipeline.
