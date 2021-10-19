@@ -130,8 +130,10 @@ let main current_config github mode auth store config
   let self_deploy =
     if self_deploy then
       let commit =
-        Current_git.clone ~schedule:daily ~gref:"live"
-          "https://github.com/ocurrent/mirage-ci"
+        Github.Api.Anonymous.head_of
+          { Github.Repo_id.owner = "ocurrent"; name = "mirage-ci" }
+          (`Ref "refs/heads/live")
+        |> Current_git.fetch
       in
       let image = Docker.build ~pull:false (`Git commit) in
       [ ("self-deploy", Docker.service ~name:"infra_mirage-ci" ~image ()) ]
