@@ -8,24 +8,24 @@ let daily = Current_cache.Schedule.v ~valid_for:(Duration.of_day 1) ()
 let main current_config mode config
     (`Pipelines_options mirage_pipelines_options) =
   let config = Common.Config.make config in
-  let repo_opam =
-    Current_git.clone ~schedule:daily
-      "https://github.com/ocaml/opam-repository.git"
-  in
-  let repo_overlays =
-    Current_git.clone ~schedule:daily
-      "https://github.com/mirage/opam-overlays.git"
-  in
-  let repos_mirage_main =
-    [
-      repo_opam |> Current.map (fun x -> ("opam", x));
-      repo_overlays |> Current.map (fun x -> ("overlays", x));
-    ]
-    |> Current.list_seq
-  in
   let main_ci =
+    let repo_opam =
+      Current_git.clone ~schedule:daily
+        "https://github.com/ocaml/opam-repository.git"
+    in
+    let repos =
+      let open Current.Syntax in
+      let+ repo_opam = repo_opam in
+      [ ("opam", repo_opam) ]
+    in
+    let mirage_overlay =
+      Current_git.clone ~schedule:daily
+        "https://github.com/mirage/opam-overlays.git"
+      |> Current.map Current_git.Commit.id
+    in
     Mirage_ci_pipelines.PR.local ~config ~options:mirage_pipelines_options
-      (Repository.current_list_unfetch repos_mirage_main)
+      ~repos:(Repository.current_list_unfetch repos)
+      ~mirage_overlay
   in
 
   let engine =
