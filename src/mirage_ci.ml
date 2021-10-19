@@ -2,6 +2,7 @@ open Monorepo_lib
 open Common
 module Github = Current_github
 module Git = Current_git
+module Docker = Current_docker.Default
 
 let () = Logging.init ()
 let daily = Current_cache.Schedule.v ~valid_for:(Duration.of_day 1) ()
@@ -28,7 +29,8 @@ let gh_head_of github name ref =
       |> Current.map Current_github.Api.Commit.id
 
 let main current_config github mode auth store config
-    (`Test_monorepos monorepos) (`Pipelines_options mirage_pipelines_options) =
+    (`Test_monorepos monorepos) (`Pipelines_options mirage_pipelines_options)
+    (`Self_deploy self_deploy) =
   let config =
     Common.Config.make ~secrets:(Git_store.Cluster.secrets store) config
   in
@@ -125,9 +127,23 @@ let main current_config github mode auth store config
           Mirage_ci_pipelines.PR.routes prs )
   in
 
+  let self_deploy =
+    if self_deploy then
+      let commit =
+        Github.Api.Anonymous.head_of
+          { Github.Repo_id.owner = "ocurrent"; name = "mirage-ci" }
+          (`Ref "refs/heads/live")
+        |> Current_git.fetch
+      in
+      let image = Docker.build ~pull:false (`Git commit) in
+      [ ("self-deploy", Docker.service ~name:"infra_mirage-ci" ~image ()) ]
+    else []
+  in
+
   let engine =
     Current.Engine.create ~config:current_config (fun () ->
-        Current.all_labelled (("monorepos", monorepos) :: main_ci))
+        Current.all_labelled
+          ((("monorepos", monorepos) :: main_ci) @ self_deploy))
   in
   let has_role = if auth = None then Current_web.Site.allow_all else has_role in
   let site =
@@ -181,6 +197,16 @@ let github_config =
        (Option.map (fun x ->
             Current_github.Api.of_oauth @@ String.trim (read_file x)))
 
+let self_deploy =
+  Arg.value
+  @@ Arg.flag
+  @@ Arg.info
+       ~doc:
+         "Self deploy https://github.com/ocurrent/mirage-ci to infra_mirage-ci \
+          service"
+       [ "self-deploy" ]
+  |> named (fun x -> `Self_deploy x)
+
 let cmd =
   let doc = "an OCurrent pipeline" in
   ( Term.(
@@ -192,7 +218,8 @@ let cmd =
       $ Git_store.cmdliner
       $ Common.Config.cmdliner
       $ test_monorepos
-      $ main_ci),
+      $ main_ci
+      $ self_deploy),
     Term.info program_name ~doc )
 
 let () = Term.(exit @@ eval cmd)
