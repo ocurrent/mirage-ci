@@ -84,7 +84,7 @@ let github_status_of_state kind id status =
   | Error (`Active _) -> Github.Api.Status.v ~url `Pending
   | Error (`Msg m) -> Github.Api.Status.v ~url `Failure ~description:m
 
-let perform_test ?mirage_dev ~config ~platform ~mirage_skeleton ~mirage:_ ~repos
+let perform_test ?mirage_dev ~config ~platform ~mirage_skeleton ~mirage ~repos
     ~mirage_overlay () =
   let open Current.Syntax in
   let repos =
@@ -94,8 +94,7 @@ let perform_test ?mirage_dev ~config ~platform ~mirage_skeleton ~mirage:_ ~repos
         let+ repos = repos and+ mirage_dev = mirage_dev in
         repos @ [ ("mirage-dev", mirage_dev) ]
   in
-  (* mirage is not pinned (!!!)*)
-  Skeleton.all_in_one_test ~platform ~repos ~mirage_overlay ~config
+  Skeleton.all_in_one_test ~platform ~repos ~mirage ~mirage_overlay ~config
     mirage_skeleton
 
 let perform_test_and_report_status ?mirage_dev ~config ~commit_status ~platform
@@ -159,27 +158,29 @@ type kind =
 
 let id_of gh_commit = Current.map Github.Api.Commit.id gh_commit
 
+let resolve_opt friends repo =
+  let open Current.Syntax in
+  let+ friends = friends and+ refs = repo.all in
+  Printf.printf "Resolving for %s/%s\n" repo.owner repo.name;
+  List.find_map
+    (fun (owner, name, number) ->
+      if repo.owner = owner && repo.name = name then (
+        Printf.printf "looking for %d\n" number;
+        List.find_map
+          (function
+            | `PR Github.Api.Ref.{ id; _ }, value when id = number ->
+                Printf.printf "%s %s >  %d!!\n" owner name id;
+                Some value
+            | _ -> None)
+          refs)
+      else None)
+    friends
+  |> Option.map Github.Api.Commit.id
+
 let resolve friends repo =
   let open Current.Syntax in
-  let+ friends = friends and+ refs = repo.all and+ branch = repo.branch in
-  Printf.printf "Resolving for %s/%s\n" repo.owner repo.name;
-  match
-    List.find_map
-      (fun (owner, name, number) ->
-        if repo.owner = owner && repo.name = name then (
-          Printf.printf "looking for %d\n" number;
-          List.find_map
-            (function
-              | `PR Github.Api.Ref.{ id; _ }, value when id = number ->
-                  Printf.printf "%s %s >  %d!!\n" owner name id;
-                  Some value
-              | _ -> None)
-            refs)
-        else None)
-      friends
-  with
-  | Some ref -> ref |> Github.Api.Commit.id
-  | None -> branch |> Github.Api.Commit.id
+  let+ result = resolve_opt friends repo and+ branch = repo.branch in
+  Option.value result ~default:(Github.Api.Commit.id branch)
 
 type test = {
   name : string;
@@ -194,22 +195,27 @@ let perform_ci ~config ~name ~commit_status ~repos ~mirage_overlay ~kind ci_refs
     let friends = Current.map find_friend_prs ref in
     match kind with
     | Mirage { mirage_dev; mirage_skeleton } ->
+        (* Testing mirage commits and PRs *)
         let mirage_dev = Option.map (resolve friends) mirage_dev in
         let mirage_skeleton = resolve friends mirage_skeleton in
         fun ~platform commit_mirage ->
-          let mirage = id_of commit_mirage in
+          let mirage = id_of commit_mirage |> Current.map Option.some in
           perform_test_and_report_status ~platform ?mirage_dev ~mirage_skeleton
             ~mirage ~repos ~mirage_overlay name commit_mirage
     | Mirage_dev { mirage; mirage_skeleton } ->
-        let mirage = resolve friends mirage in
+        (* Testing mirage-dev commits and PRs *)
+        let mirage = resolve_opt friends mirage in
+        (* we pin mirage only if we want to test with a PR on mirage *)
         let mirage_skeleton = resolve friends mirage_skeleton in
         fun ~platform commit_mirage_dev ->
           let mirage_dev = id_of commit_mirage_dev in
           perform_test_and_report_status ~platform ~mirage_dev ~mirage_skeleton
             ~mirage ~repos ~mirage_overlay name commit_mirage_dev
     | Mirage_skeleton { mirage_dev; mirage } ->
+        (* Testing mirage-skeleton commits and PRs *)
         let mirage_dev = Option.map (resolve friends) mirage_dev in
-        let mirage = resolve friends mirage in
+        let mirage = resolve_opt friends mirage in
+        (* we pin mirage only if we want to test with a PR on mirage *)
         fun ~platform commit_mirage_skeleton ->
           let mirage_skeleton = id_of commit_mirage_skeleton in
           perform_test_and_report_status ~platform ?mirage_dev ~mirage_skeleton
@@ -402,7 +408,7 @@ let local ~config ~options ~repos ~mirage_overlay =
   let pipelines =
     tests options
     |> List.map (fun { name; mirage; mirage_dev; mirage_skeleton; _ } ->
-           let mirage = github_setup mirage in
+           let mirage = github_setup mirage |> Current.map Option.some in
            let mirage_skeleton = github_setup mirage_skeleton in
            let mirage_dev = Option.map github_setup mirage_dev in
            ( name,
