@@ -152,9 +152,26 @@ let url_of_commit (commit : Github.Api.Commit.t) (ref : Github.Api.Ref.t) =
   (Fmt.str "Github: %a" Api.Ref.pp ref, Fmt.to_to_string (pp_url ~repo) ref)
 
 type kind =
-  | Mirage of { mirage_dev : gh_repo option; mirage_skeleton : gh_repo }
-  | Mirage_dev of { mirage : gh_repo; mirage_skeleton : gh_repo }
-  | Mirage_skeleton of { mirage : gh_repo; mirage_dev : gh_repo option }
+  | Mirage of {
+      mirage_dev : gh_repo option;
+      mirage_skeleton : gh_repo;
+      build_mode : gh_repo Skeleton.build_mode;
+    }
+  | Mirage_dev of {
+      mirage : gh_repo;
+      mirage_skeleton : gh_repo;
+      build_mode : gh_repo Skeleton.build_mode;
+    }
+  | Mirage_skeleton of {
+      mirage : gh_repo;
+      mirage_dev : gh_repo option;
+      build_mode : gh_repo Skeleton.build_mode;
+    }
+  | Opam_overlays of {
+      mirage : gh_repo;
+      mirage_dev : gh_repo option;
+      mirage_skeleton : gh_repo;
+    }
 
 let id_of gh_commit = Current.map Github.Api.Commit.id gh_commit
 
@@ -182,6 +199,12 @@ let resolve friends repo =
   let+ result = resolve_opt friends repo and+ branch = repo.branch in
   Option.value result ~default:(Github.Api.Commit.id branch)
 
+let build_mode_map f = function
+  | Skeleton.Mirage_3 -> Skeleton.Mirage_3
+  | Mirage_4 { overlay } -> Mirage_4 { overlay = Option.map f overlay }
+
+let resolve_build_mode friends = build_mode_map (resolve friends)
+
 type test = {
   name : string;
   kind : kind;
@@ -189,36 +212,50 @@ type test = {
   commit_status : bool;
 }
 
-let perform_ci ~config ~name ~commit_status ~repos ~build_mode ~kind ci_refs =
+let perform_ci ~config ~name ~commit_status ~repos ~kind ci_refs =
   let perform_test ~ref =
     let friends = Current.map find_friend_prs ref in
     match kind with
-    | Mirage { mirage_dev; mirage_skeleton } ->
+    | Mirage { mirage_dev; mirage_skeleton; build_mode } ->
         (* Testing mirage commits and PRs *)
         let mirage_dev = Option.map (resolve friends) mirage_dev in
         let mirage_skeleton = resolve friends mirage_skeleton in
+        let build_mode = resolve_build_mode friends build_mode in
         fun ~platform commit_mirage ->
           let mirage = id_of commit_mirage |> Current.map Option.some in
           perform_test_and_report_status ~platform ?mirage_dev ~mirage_skeleton
             ~mirage ~repos ~build_mode name commit_mirage
-    | Mirage_dev { mirage; mirage_skeleton } ->
+    | Mirage_dev { mirage; mirage_skeleton; build_mode } ->
         (* Testing mirage-dev commits and PRs *)
         let mirage = resolve_opt friends mirage in
         (* we pin mirage only if we want to test with a PR on mirage *)
         let mirage_skeleton = resolve friends mirage_skeleton in
+        let build_mode = resolve_build_mode friends build_mode in
         fun ~platform commit_mirage_dev ->
           let mirage_dev = id_of commit_mirage_dev in
           perform_test_and_report_status ~platform ~mirage_dev ~mirage_skeleton
             ~mirage ~repos ~build_mode name commit_mirage_dev
-    | Mirage_skeleton { mirage_dev; mirage } ->
+    | Mirage_skeleton { mirage_dev; mirage; build_mode } ->
         (* Testing mirage-skeleton commits and PRs *)
         let mirage_dev = Option.map (resolve friends) mirage_dev in
+        let build_mode = resolve_build_mode friends build_mode in
         let mirage = resolve_opt friends mirage in
         (* we pin mirage only if we want to test with a PR on mirage *)
         fun ~platform commit_mirage_skeleton ->
           let mirage_skeleton = id_of commit_mirage_skeleton in
           perform_test_and_report_status ~platform ?mirage_dev ~mirage_skeleton
             ~mirage ~repos ~build_mode name commit_mirage_skeleton
+    | Opam_overlays { mirage; mirage_skeleton; mirage_dev } ->
+        (* Testing opam-overlays commits and PRs *)
+        let mirage = resolve_opt friends mirage in
+        (* we pin mirage only if we want to test with a PR on mirage *)
+        let mirage_dev = Option.map (resolve friends) mirage_dev in
+        let mirage_skeleton = resolve friends mirage_skeleton in
+        fun ~platform commit_opam_overlays ->
+          let overlay = Some (id_of commit_opam_overlays) in
+          let build_mode = Skeleton.Mirage_4 { overlay } in
+          perform_test_and_report_status ~platform ?mirage_dev ~mirage_skeleton
+            ~mirage ~repos ~build_mode name commit_opam_overlays
   in
   ci_refs
   |> Current.map (fun commits ->
@@ -238,7 +275,12 @@ let perform_ci ~config ~name ~commit_status ~repos ~build_mode ~kind ci_refs =
                      ~value:"mirage-skeleton" ~input:commit)
          |> Current.list_seq)
 
-type enable_commit_status = { mirage : bool; skeleton : bool; dev : bool }
+type enable_commit_status = {
+  mirage : bool;
+  skeleton : bool;
+  dev : bool;
+  overlay : bool;
+}
 
 type test_options = {
   mirage_4 : enable_commit_status option;
@@ -249,14 +291,16 @@ let is_enabled t = Option.is_some t.mirage_4 || Option.is_some t.mirage_3
 
 let test_options_cmdliner =
   let open Cmdliner in
+  let status =
+    [
+      ("mirage", `Mirage);
+      ("skeleton", `Skeleton);
+      ("dev", `Dev);
+      ("overlay", `Overlay);
+    ]
+  in
   let conv_commit_status =
-    Arg.(
-      opt ~vopt:(Some [])
-        (some
-           (list
-              (enum
-                 [ ("mirage", `Mirage); ("skeleton", `Skeleton); ("dev", `Dev) ])))
-        None)
+    Arg.(opt ~vopt:(Some []) (some (list (enum status))) None)
   in
   let mirage_4 =
     Arg.value (conv_commit_status (Arg.info [ "test-mirage-4" ]))
@@ -270,8 +314,9 @@ let test_options_cmdliner =
         (fun acc -> function
           | `Mirage -> { acc with mirage = true }
           | `Skeleton -> { acc with skeleton = true }
-          | `Dev -> { acc with dev = true })
-        { mirage = false; skeleton = false; dev = false }
+          | `Dev -> { acc with dev = true }
+          | `Overlay -> { acc with dev = true })
+        { mirage = false; skeleton = false; dev = false; overlay = false }
         list
     in
     {
@@ -285,37 +330,49 @@ type context = {
   config : Common.Config.t;
   enable_commit_status : enable_commit_status;
   repos : Repository.t list Current.t;
-  build_mode : Skeleton.build_mode;
 }
 
-let pipeline ~mirage ~mirage_skeleton ~extra_repository
-    { config; enable_commit_status; repos; build_mode } =
+let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
+    { config; enable_commit_status; repos } =
   let tasks =
     [
       {
         name = "mirage";
-        kind = Mirage { mirage_skeleton; mirage_dev = extra_repository };
+        kind = Mirage { mirage_skeleton; mirage_dev; build_mode };
         input = mirage;
         commit_status = enable_commit_status.mirage;
       };
       {
         name = "mirage-skeleton";
-        kind = Mirage_skeleton { mirage; mirage_dev = extra_repository };
+        kind = Mirage_skeleton { mirage; mirage_dev; build_mode };
         input = mirage_skeleton;
         commit_status = enable_commit_status.skeleton;
       };
     ]
-    @ (extra_repository
-      |> Option.map (fun extra_repository ->
-             [
-               {
-                 name = "mirage-dev";
-                 kind = Mirage_dev { mirage; mirage_skeleton };
-                 input = extra_repository;
-                 commit_status = enable_commit_status.dev;
-               };
-             ])
-      |> Option.value ~default:[])
+    @ (match mirage_dev with
+      | Some mirage_dev ->
+          [
+            {
+              name = "mirage-dev";
+              kind = Mirage_dev { mirage; mirage_skeleton; build_mode };
+              input = mirage_dev;
+              commit_status = enable_commit_status.dev;
+            };
+          ]
+      | None -> [])
+    @
+    match build_mode with
+    | Mirage_4 { overlay = None } -> []
+    | Mirage_4 { overlay = Some i } ->
+        [
+          {
+            name = "opam-overlays";
+            kind = Opam_overlays { mirage; mirage_skeleton; mirage_dev };
+            input = i;
+            commit_status = enable_commit_status.overlay;
+          };
+        ]
+    | Mirage_3 -> []
   in
   let pipeline =
     tasks
@@ -323,8 +380,7 @@ let pipeline ~mirage ~mirage_skeleton ~extra_repository
            let prs = ref [] in
            ( name,
              prs,
-             perform_ci ~config ~name ~commit_status ~repos ~build_mode ~kind
-               input.ci
+             perform_ci ~config ~name ~commit_status ~repos ~kind input.ci
              |> update prs ))
   in
   let specs = List.map (fun (name, content, _) -> { name; content }) pipeline in
@@ -341,10 +397,10 @@ type test_set = {
   mirage : repo;
   mirage_skeleton : repo;
   mirage_dev : repo option;
-  build_mode : Skeleton.build_mode;
+  build_mode : repo Skeleton.build_mode;
 }
 
-let tests ~mirage_overlay options =
+let tests options =
   let m4 =
     Option.map
       (fun enable_commit_status ->
@@ -356,7 +412,17 @@ let tests ~mirage_overlay options =
             Some { org = "mirage"; name = "mirage-dev"; branch = "master" };
           mirage_skeleton =
             { org = "mirage"; name = "mirage-skeleton"; branch = "mirage-dev" };
-          build_mode = Skeleton.Mirage_4 { overlay = mirage_overlay };
+          build_mode =
+            Mirage_4
+              {
+                overlay =
+                  Some
+                    {
+                      org = "mirage";
+                      name = "opam-overlays";
+                      branch = "master";
+                    };
+              };
         })
       options.mirage_4
   in
@@ -380,12 +446,12 @@ let tests ~mirage_overlay options =
 (* WE PERFORM TWO SETS OF TESTS
    - mirage skeleton 'master' / mirage '3' / mirage-dev '3'
    - mirage skeleton 'mirage-dev' / mirage 'main' / mirage-dev 'master' *)
-let make ~config ~options ~repos ~mirage_overlay github =
+let make ~config ~options ~repos github =
   let github_setup { branch; org; name } =
     github_setup ~branch ~github org name
   in
   let specs, pipelines =
-    tests ~mirage_overlay options
+    tests options
     |> List.map
          (fun
            {
@@ -397,30 +463,32 @@ let make ~config ~options ~repos ~mirage_overlay github =
              build_mode;
            }
          ->
-           let ctx = { config; enable_commit_status; repos; build_mode } in
+           let ctx = { config; enable_commit_status; repos } in
            let mirage = github_setup mirage in
            let mirage_skeleton = github_setup mirage_skeleton in
            let mirage_dev = Option.map github_setup mirage_dev in
+           let build_mode = build_mode_map github_setup build_mode in
            let spec, pipeline =
-             pipeline ~mirage ~mirage_skeleton ~extra_repository:mirage_dev ctx
+             pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode ctx
            in
            (spec, (name, pipeline)))
     |> List.split
   in
   { pipeline = Current.all_labelled pipelines; specs = List.concat specs }
 
-let local ~config ~options ~repos ~mirage_overlay =
+let local ~config ~options ~repos =
   let github_setup { branch; org; name } =
     Github.Api.Anonymous.head_of { owner = org; name }
       (`Ref ("refs/heads/" ^ branch))
   in
   let pipelines =
-    tests ~mirage_overlay options
+    tests options
     |> List.map
          (fun { name; mirage; mirage_dev; mirage_skeleton; build_mode; _ } ->
            let mirage = github_setup mirage |> Current.map Option.some in
            let mirage_skeleton = github_setup mirage_skeleton in
            let mirage_dev = Option.map github_setup mirage_dev in
+           let build_mode = build_mode_map github_setup build_mode in
            ( name,
              perform_test ?mirage_dev ~config
                ~platform:Common.Platform.platform_host ~mirage_skeleton ~mirage

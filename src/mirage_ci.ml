@@ -109,15 +109,10 @@ let main current_config github mode auth store config
           let+ repo_opam = repo_opam in
           [ ("opam", repo_opam) ]
         in
-        let mirage_overlay =
-          Current_git.clone ~schedule:daily
-            "https://github.com/mirage/opam-overlays.git"
-          |> Current.map Current_git.Commit.id
-        in
         Some
           (Mirage_ci_pipelines.PR.make ~config ~options:mirage_pipelines_options
              ~repos:(Repository.current_list_unfetch repos)
-             ~mirage_overlay github)
+             github)
   in
   let main_ci, main_routes =
     match prs with

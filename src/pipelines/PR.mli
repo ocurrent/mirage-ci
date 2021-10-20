@@ -14,7 +14,6 @@ val make :
   config:Common.Config.t ->
   options:test_options ->
   repos:(string * Git.Commit_id.t) list Current.t ->
-  mirage_overlay:Git.Commit_id.t Current.t ->
   Github.Api.t ->
   t
 
@@ -25,5 +24,4 @@ val local :
   config:Common.Config.t ->
   options:test_options ->
   repos:(string * Git.Commit_id.t) list Current.t ->
-  mirage_overlay:Git.Commit_id.t Current.t ->
   unit Current.t
