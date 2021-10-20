@@ -13,6 +13,8 @@ let children ~name spec { base; ops; children } =
 let finish { base; ops; children } =
   Obuilder_spec.stage ~child_builds:children ~from:base ops
 
+let minimal base = { base; ops = []; children = [] }
+
 let make base =
   let open Obuilder_spec in
   {
