@@ -1,8 +1,0 @@
-;;
-
-(library
- (name mirage_lib)
- (libraries common fpath result bos current.term current current.cache
-   current_git fmt.tty lwt obuilder-spec current_ocluster)
- (preprocess
-  (pps ppx_deriving_yojson ppx_deriving.std)))
