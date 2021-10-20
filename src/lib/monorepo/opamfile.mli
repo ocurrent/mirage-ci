@@ -1,4 +1,4 @@
-type t = OpamParserTypes.opamfile
+type t = OpamParserTypes.FullPos.opamfile
 type pkg = { name : string; version : string; repo : string }
 
 val get_packages : t -> pkg list
