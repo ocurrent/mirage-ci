@@ -1,6 +1,10 @@
 open Current.Syntax
 open Common
 
+type build_mode =
+  | Mirage_3
+  | Mirage_4 of { overlay : Current_git.Commit_id.t Current.t }
+
 let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
 
 let is_available_on (platform : Platform.t) = function
@@ -8,12 +12,42 @@ let is_available_on (platform : Platform.t) = function
   | "xen" when platform.arch = Amd64 -> true
   | _ -> false
 
+let make_instructions =
+  let open Obuilder_spec in
+  function
+  | Mirage_3 ->
+      Current.return
+        [
+          run "opam exec -- make configure";
+          env "DUNE_CACHE" "enabled";
+          env "DUNE_CACHE_TRANSPORT" "direct";
+          run
+            ~cache:[ Setup.opam_download_cache; Setup.dune_build_cache ]
+            ~network:[ "host" ] "opam exec -- make build";
+        ]
+  | Mirage_4 { overlay } ->
+      let+ overlay = overlay in
+      [
+        run "opam exec -- make configure";
+        env "OVERLAY" (Setup.remote_uri overlay);
+        run ~network:[ "host" ] "opam exec -- make lock";
+        run
+          ~cache:[ Setup.opam_download_cache ]
+          ~network:[ "host" ] "opam exec -- make depends";
+        run
+          ~cache:[ Setup.opam_download_cache ]
+          ~network:[ "host" ] "opam exec -- make pull";
+        env "DUNE_CACHE" "enabled";
+        env "DUNE_CACHE_TRANSPORT" "direct";
+        run ~cache:[ Setup.dune_build_cache ] "opam exec -- make build";
+      ]
+
 (* Test all of mirage-skeleton at once *)
-let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage
-    ~mirage_overlay ~config mirage_skeleton =
+let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
+    ~build_mode mirage_skeleton =
   let spec =
     let+ repos = repos
-    and+ mirage_overlay = mirage_overlay
+    and+ make_instructions = make_instructions build_mode
     and+ mirage = mirage in
 
     let open Obuilder_spec in
@@ -30,23 +64,8 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage
     |> Spec.add pin_mirage
     |> Spec.add (Setup.install_tools [ "mirage" ])
     |> Spec.add
-         [
-           copy [ "." ] ~dst:"/src/";
-           env "MODE" target;
-           workdir "/src/";
-           run "opam exec -- make configure";
-           env "OVERLAY" (Setup.remote_uri mirage_overlay);
-           run ~network:[ "host" ] "opam exec -- make lock";
-           run
-             ~cache:[ Setup.opam_download_cache ]
-             ~network:[ "host" ] "opam exec -- make depends";
-           run
-             ~cache:[ Setup.opam_download_cache ]
-             ~network:[ "host" ] "opam exec -- make pull";
-           env "DUNE_CACHE" "enabled";
-           env "DUNE_CACHE_TRANSPORT" "direct";
-           run ~cache:[ Setup.dune_build_cache ] "opam exec -- make build";
-         ]
+         [ copy [ "." ] ~dst:"/src/"; env "MODE" target; workdir "/src/" ]
+    |> Spec.add make_instructions
   in
   let label = "skeleton@" ^ target in
   let cache_hint =
@@ -60,12 +79,12 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage
     ~pool:(Platform.ocluster_pool platform)
     ~src spec
 
-let all_in_one_test ~(platform : Platform.t) ~repos ~mirage ~mirage_overlay
-    ~config mirage_skeleton =
+let all_in_one_test ~(platform : Platform.t) ~repos ~mirage ~config ~build_mode
+    mirage_skeleton =
   targets
   |> List.filter (is_available_on platform)
   |> List.map (fun target ->
          ( target,
-           all_in_one_test ~target ~platform ~repos ~mirage ~mirage_overlay
-             ~config mirage_skeleton ))
+           all_in_one_test ~target ~platform ~repos ~mirage ~config ~build_mode
+             mirage_skeleton ))
   |> Current.all_labelled
