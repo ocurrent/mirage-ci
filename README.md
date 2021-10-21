@@ -26,15 +26,15 @@ By default, two testing workflows are implemented:
   - [mirage-skeleton#mirage-dev](https://github.com/mirage/mirage-skeleton/tree/mirage-dev)
   - [opam-overlays#master](https://github.com/mirage/opam-overlays)
 
-**co-dependent PRs** `mirage-ci` will detech if PRs submitted to these
-repositories are mentionning each others. In that case, they will be
+**co-dependent PRs** `mirage-ci` will detect if PRs submitted to these
+repositories mention each other. In that case, they will be
 tested together.
 
 ## Running
 
 You need an ocluster submission token and a git server on which
-monorepo can be pushed. For the main CI, obtain a Github personal
-access token that has the `repo:status` authorisation and save it in a
+monorepo can be pushed. For the central CI, obtain a Github personal
+access token with the `repo:status` authorisation and save it in a
 file.
 
 Then use:
@@ -79,8 +79,8 @@ $ docker service create \
   --git-http-remote=https://ci.mirage.io/git/mirage-ci/mirage-ci-monorepo.git \
   --privkey /ssh/git \
   --pubkey /ssh/git.pub \
-  --test-mirage-4 mirage,skeleton,dev,ovelay \
-  --test-mirage-3 mirage,skeleton,dev,ovelay \
+  --test-mirage-4 mirage,skeleton,dev,overlay \
+  --test-mirage-3 mirage,skeleton,dev,overlay \
   --test-monorepos \
   --self-deploy
 ```
@@ -96,8 +96,8 @@ dune exec -- mirage-ci-local --test-mirage-3 --test-mirage-4
 
 ## PR testing
 
-To enable commit status reporting, make sure you have the proper
-authorization on mirage repositories, then add the selected
-repositories where commit status should be reported. Example:
-`--test-mirage-4 mirage,skeleton,dev,ovelay` to report status for all
-the watched repositories.
+To enable status reporting for commits, make sure you have the proper
+authorisation on mirage repositories, then add the selected
+repositories where commit status should be reported. For instance,
+`--test-mirage-4 mirage,skeleton,dev,overlay` will update the status
+of all the watched repositories.
