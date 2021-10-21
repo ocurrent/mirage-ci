@@ -1,9 +1,7 @@
 open Current.Syntax
 open Common
 
-type build_mode =
-  | Mirage_3
-  | Mirage_4 of { overlay : Current_git.Commit_id.t Current.t }
+type 'a build_mode = Mirage_3 | Mirage_4 of { overlay : 'a option }
 
 let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
 
@@ -26,21 +24,28 @@ let make_instructions =
             ~network:[ "host" ] "opam exec -- make build";
         ]
   | Mirage_4 { overlay } ->
-      let+ overlay = overlay in
-      [
-        run "opam exec -- make configure";
-        env "OVERLAY" (Setup.remote_uri overlay);
-        run ~network:[ "host" ] "opam exec -- make lock";
-        run
-          ~cache:[ Setup.opam_download_cache ]
-          ~network:[ "host" ] "opam exec -- make depends";
-        run
-          ~cache:[ Setup.opam_download_cache ]
-          ~network:[ "host" ] "opam exec -- make pull";
-        env "DUNE_CACHE" "enabled";
-        env "DUNE_CACHE_TRANSPORT" "direct";
-        run ~cache:[ Setup.dune_build_cache ] "opam exec -- make build";
-      ]
+      let+ overlay =
+        match overlay with
+        | None -> Current.return []
+        | Some o ->
+            let+ o = o in
+            [ env "OVERLAY" (Setup.remote_uri o) ]
+      in
+
+      [ run "opam exec -- make configure" ]
+      @ overlay
+      @ [
+          run ~network:[ "host" ] "opam exec -- make lock";
+          run
+            ~cache:[ Setup.opam_download_cache ]
+            ~network:[ "host" ] "opam exec -- make depends";
+          run
+            ~cache:[ Setup.opam_download_cache ]
+            ~network:[ "host" ] "opam exec -- make pull";
+          env "DUNE_CACHE" "enabled";
+          env "DUNE_CACHE_TRANSPORT" "direct";
+          run ~cache:[ Setup.dune_build_cache ] "opam exec -- make build";
+        ]
 
 (* Test all of mirage-skeleton at once *)
 let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config

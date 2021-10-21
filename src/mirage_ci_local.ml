@@ -18,14 +18,8 @@ let main current_config mode config
       let+ repo_opam = repo_opam in
       [ ("opam", repo_opam) ]
     in
-    let mirage_overlay =
-      Current_git.clone ~schedule:daily
-        "https://github.com/mirage/opam-overlays.git"
-      |> Current.map Current_git.Commit.id
-    in
     Mirage_ci_pipelines.PR.local ~config ~options:mirage_pipelines_options
       ~repos:(Repository.current_list_unfetch repos)
-      ~mirage_overlay
   in
 
   let engine =
