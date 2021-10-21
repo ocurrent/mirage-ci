@@ -1,6 +1,7 @@
 # Mirage CI
 
-This CI is a set of ocurrent pipelines testing various things for the Mirage project.
+This CI is a set of [ocurrent](https://github.com/ocurrent/ocurrent)
+pipelines testing various things for the Mirage project.
 
 In `src/pipelines/`, there are two kind of pipelines:
 
