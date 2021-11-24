@@ -2,7 +2,7 @@
 
 (library
  (name common)
- (libraries ocluster-api bos cmdliner capnp-rpc-unix result current
+ (libraries ocluster-api bos cmdliner capnp-rpc-unix duration result current
    current_git current_docker current.fs fpath fmt obuilder-spec
    current_ocluster)
  (preprocess
