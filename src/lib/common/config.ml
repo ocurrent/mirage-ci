@@ -42,13 +42,16 @@ type t =
       profile : [ `Production | `Docker ];
     }
 
+let timeout = Duration.of_hour 1
+
 let make ?(secrets = []) build_config =
   match build_config with
   | Config_local -> Local { secrets }
   | Config_cluster { connection; profile } ->
       Cluster
         {
-          ocluster = Current_ocluster.v ~secrets ~urgent:`Never connection;
+          ocluster =
+            Current_ocluster.v ~timeout ~secrets ~urgent:`Never connection;
           profile;
         }
 
