@@ -121,6 +121,7 @@ let build ?label ?cache_hint context ~pool ~src spec =
   | Cluster { profile = `Production; ocluster } ->
       to_obuilder_job spec
       |> Current_ocluster.build_obuilder ?label ?cache_hint ocluster ~pool ~src
+      |> Current.map ignore
   | Cluster { profile = `Docker; ocluster } ->
       let options =
         {
@@ -132,3 +133,4 @@ let build ?label ?cache_hint context ~pool ~src spec =
       in
       to_docker_job spec
       |> Current_ocluster.build ~options ?label ?cache_hint ocluster ~pool ~src
+      |> Current.map ignore
