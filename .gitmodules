@@ -4,3 +4,6 @@
 [submodule "vendor/ocurrent"]
 	path = vendor/ocurrent
 	url = https://github.com/TheLortex/ocurrent
+[submodule "vendor/current-web-pipelines"]
+	path = vendor/current-web-pipelines
+	url = https://github.com/TheLortex/current-web-pipelines.git
