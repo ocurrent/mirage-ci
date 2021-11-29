@@ -161,6 +161,7 @@ let main current_config github mode auth store config
       Routes.((s "login" /? nil) @--> Current_github.Auth.login auth)
       :: Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
       :: Current_web.routes engine
+      @ Website.routes website
     in
     Current_web.Site.(v ~has_role) ~name:program_name routes
   in

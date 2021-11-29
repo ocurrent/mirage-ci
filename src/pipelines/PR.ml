@@ -62,17 +62,35 @@ type metadata_gh = {
   friend_prs : Github.Api.Ref.pr_info list;
 }
 
+let build_mode_to_string = function
+  | `Mirage_3 -> "mirage-3"
+  | `Mirage_4 -> "mirage-4"
+
+let gh_id = function
+  | { ref = `PR { id; _ }; owner; name; commit; build_mode; _ } ->
+      Fmt.str "pr-%d-%s-%s-%s-%s" id
+        (build_mode_to_string build_mode)
+        owner name commit
+  | { ref = `Ref b; owner; name; commit; build_mode; _ } ->
+      Fmt.str "branch-%s-%s-%s-%s-%s" b
+        (build_mode_to_string build_mode)
+        owner name commit
+
 type pipeline = [ `Local of [ `Mirage_4 | `Mirage_3 ] | `Github of metadata_gh ]
 type t = (unit, string, string, pipeline) Current_web_pipelines.State.pipeline
 
 let compare_metadata = Stdlib.compare
 
-(* TODO!!!! *)
-let url kind id =
-  Uri.of_string (Fmt.str "https://ci.mirage.io/github/%s/prs/%s" kind id)
+let id = function
+  | `Local `Mirage_3 -> "local-mirage-3"
+  | `Local `Mirage_4 -> "local-mirage-4"
+  | `Github gh -> gh_id gh
 
-let github_status_of_state kind id status =
-  let url = url kind id in
+let gh_url meta =
+  Uri.of_string (Fmt.str "https://ci.mirage.io/pipelines/%s" (gh_id meta))
+
+let github_status_of_state meta status =
+  let url = gh_url meta in
   match status with
   | Ok _ -> Github.Api.Status.v ~url `Success ~description:"Passed"
   | Error (`Active _) -> Github.Api.Status.v ~url `Pending
@@ -165,21 +183,14 @@ module Run = struct
     type t = {
       raw : Raw.t;
       gh_commit : Github.Api.Commit.t Current.t;
-      kind : string;
       commit_status : bool;
     }
 
-    let perform_test_and_report_status
-        { raw = { platform; _ } as raw; kind; gh_commit; commit_status } =
+    let perform_test_and_report_status ~metadata
+        { raw = { platform; _ } as raw; gh_commit; commit_status } =
       let open Current.Syntax in
       let pipeline = Raw.perform_test raw in
       let commit_status =
-        let id =
-          let+ gh_commit' = gh_commit in
-          Fmt.str "%s-%s"
-            (Github.Api.Commit.id gh_commit' |> Git.Commit_id.hash)
-            (Platform.platform_id platform)
-        in
         match commit_status with
         | false -> Current_web_pipelines.Task.current pipeline
         | true ->
@@ -187,8 +198,8 @@ module Run = struct
               let+ state =
                 Current_web_pipelines.Task.current pipeline
                 |> Current.state ~hidden:true
-              and+ id = id in
-              github_status_of_state kind id state
+              and+ metadata = metadata in
+              github_status_of_state metadata state
             in
             Github.Api.Commit.set_status gh_commit
               (Fmt.str "Mirage CI - %a" Platform.pp_platform platform)
@@ -362,12 +373,6 @@ module Run = struct
           wrap (friend_pr ~friends mirage_skeleton)
       | Mirage_skeleton _ -> (Current.return None, id_of)
 
-    let kind_name = function
-      | Opam_overlays _ -> "opam-overlays"
-      | Mirage _ -> "mirage"
-      | Mirage_dev _ -> "mirage-dev"
-      | Mirage_skeleton _ -> "mirage-skeleton"
-
     let github { kind; repo; commit_status; repos; config } =
       let perform_test ~friends =
         let friend_pr_mirage_dev, mirage_dev =
@@ -387,12 +392,12 @@ module Run = struct
               friend_pr_mirage_skeleton;
               friend_pr_build_mode;
             ],
-          fun ~platform commit ->
+          fun ~metadata ~platform commit ->
             let mirage = mirage commit in
             let mirage_skeleton = mirage_skeleton commit in
             let mirage_dev = mirage_dev commit in
             let build_mode = build_mode commit in
-            Gh.perform_test_and_report_status
+            Gh.perform_test_and_report_status ~metadata
               {
                 Gh.raw =
                   {
@@ -405,7 +410,6 @@ module Run = struct
                     config;
                   };
                 gh_commit = commit;
-                kind = kind_name kind;
                 commit_status;
               } )
       in
@@ -417,35 +421,39 @@ module Run = struct
              let commit = Current.map snd commit in
              let friends = Current.map Friend_PR.find_friend_prs ref in
              let friend_prs, perform_test = perform_test ~friends in
+
+             let metadata =
+               let open Current.Syntax in
+               let+ friend_prs = friend_prs
+               and+ ref = ref
+               and+ commit = commit in
+               {
+                 ref;
+                 friend_prs;
+                 kind =
+                   (match kind with
+                   | Mirage _ -> `Mirage
+                   | Mirage_dev _ -> `Mirage_dev
+                   | Mirage_skeleton _ -> `Mirage_skeleton
+                   | Opam_overlays _ -> `Opam_overlays);
+                 owner = repo.owner;
+                 name = repo.name;
+                 commit = Github.Api.Commit.id commit |> Git.Commit_id.hash;
+                 build_mode = build_mode kind;
+               }
+             in
+
              let pipeline =
                Platform.[ platform_v413_amd64; platform_v413_arm64 ]
-               |> List.map (fun platform -> perform_test ~platform commit)
+               |> List.map (fun platform ->
+                      perform_test ~metadata ~platform commit)
                |> Current_web_pipelines.Task.all
              in
              let state =
                let open Current.Syntax in
-               let+ friend_prs = friend_prs
-               and+ ref = ref
-               and+ stages = Current_web_pipelines.Task.state pipeline
-               and+ commit = commit in
-               {
-                 Current_web_pipelines.State.stages;
-                 metadata =
-                   {
-                     ref;
-                     friend_prs;
-                     kind =
-                       (match kind with
-                       | Mirage _ -> `Mirage
-                       | Mirage_dev _ -> `Mirage_dev
-                       | Mirage_skeleton _ -> `Mirage_skeleton
-                       | Opam_overlays _ -> `Opam_overlays);
-                     owner = repo.owner;
-                     name = repo.name;
-                     commit = Github.Api.Commit.id commit |> Git.Commit_id.hash;
-                     build_mode = build_mode kind;
-                   };
-               }
+               let+ stages = Current_web_pipelines.Task.state pipeline
+               and+ metadata = metadata in
+               { Current_web_pipelines.State.stages; metadata }
              in
              Current_web_pipelines.Task.v
                ~current:(Current_web_pipelines.Task.current pipeline)

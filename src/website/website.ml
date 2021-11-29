@@ -44,18 +44,7 @@ module Website_description = struct
       | `Mirage_3 -> "mirage-3"
       | `Mirage_4 -> "mirage-4"
 
-    let id (t : t) =
-      match t with
-      | `Local `Mirage_3 -> "local-mirage-3"
-      | `Local `Mirage_4 -> "local-mirage-4"
-      | `Github { ref = `PR { id; _ }; owner; name; commit; build_mode; _ } ->
-          Fmt.str "pr-%d-%s-%s-%s-%s" id
-            (build_mode_to_string build_mode)
-            owner name commit
-      | `Github { ref = `Ref b; owner; name; commit; build_mode; _ } ->
-          Fmt.str "branch-%s-%s-%s-%s-%s" b
-            (build_mode_to_string build_mode)
-            owner name commit
+    let id (t : t) = Mirage_ci_pipelines.PR.id t
 
     let render_inline (t : t) =
       match t with
@@ -71,7 +60,20 @@ module Website_description = struct
       div [ txt "Link to "; a ~a:[ a_href (to_link t) ] [ txt "Github" ] ]
   end
 
-  let render_index () = div [ h1 [ txt "Mirage CI" ] ]
+  let render_index () =
+    div
+      [
+        h1 [ txt "Mirage CI" ];
+        span
+          [
+            txt "Source code available here: ";
+            a
+              ~a:[ a_href "https://github.com/ocurrent/mirage-ci" ]
+              [ txt "https://github.com/ocurrent/mirage-ci" ];
+          ];
+        br ();
+        span [ txt "@TheLortex: I'm rolling out a new UI this week (29 nov)" ];
+      ]
 end
 
 include Current_web_pipelines.Web.Make (Website_description)

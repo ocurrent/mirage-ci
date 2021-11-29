@@ -14,6 +14,9 @@ type metadata_gh = {
 type pipeline = [ `Local of [ `Mirage_4 | `Mirage_3 ] | `Github of metadata_gh ]
 type t = (unit, string, string, pipeline) Current_web_pipelines.State.pipeline
 
+
+val id : pipeline -> string
+
 val compare_metadata : pipeline -> pipeline -> int
 
 (** The PR tester *)
