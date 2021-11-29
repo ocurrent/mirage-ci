@@ -12,14 +12,16 @@ let main current_config mode config
     let repo_opam =
       Current_git.clone ~schedule:daily
         "https://github.com/ocaml/opam-repository.git"
+      |> Current.map Current_git.Commit.id
+      |> Current.map Merge_commit.no_merge
     in
     let repos =
       let open Current.Syntax in
       let+ repo_opam = repo_opam in
-      [ ("opam", repo_opam) ]
+      [ repo_opam ]
     in
     Mirage_ci_pipelines.PR.local ~config ~options:mirage_pipelines_options
-      ~repos:(Repository.current_list_unfetch repos)
+      ~repos
   in
 
   let engine =

@@ -1,6 +1,8 @@
 type t
 (** An obuilder spec *)
 
+val minimal : string -> t
+
 val make : string -> t
 (** [make image] Initialize the spec to build on [image] *)
 
