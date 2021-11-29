@@ -1,7 +1,6 @@
 (lang dune 2.0)
 (name mirage-ci)
 (generate_opam_files true)
-(implicit_transitive_deps false)
 (source (github TheLortex/mirage-ci))
 (authors "lucas@tarides.com")
 (maintainers "lucas@tarides.com")

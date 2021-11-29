@@ -9,5 +9,7 @@ val all_in_one_test :
   config:Config.t ->
   build_mode:Current_git.Commit_id.t Current.t build_mode ->
   Current_git.Commit_id.t Current.t ->
-  unit Current.t
+  ( unit,
+    (unit, string, string) Current_web_pipelines.State.stage )
+  Current_web_pipelines.Task.t
 (** Test mirage-skeleton, all unikernels in one job *)

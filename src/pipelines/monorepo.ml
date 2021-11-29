@@ -82,7 +82,7 @@ let spec ~mode ~repos ~system ~toolchain ~lock =
         ]
         spec
 
-let v ~config ~(platform : Platform.t) ~roots ~mode ?(src = Current.return [])
+let v ~config ~(platform : Platform.t) ~roots ~mode ?(src = [])
     ?(toolchain = Host) ~repos ~lock () =
   let spec = spec ~system:platform.system ~mode ~repos ~toolchain ~lock in
   let mirage_only = match toolchain with Host -> false | _ -> true in
@@ -140,11 +140,10 @@ let lock ~(system : Platform.system) ~value ~config ~store ~monorepo ~repos
 
 let universe_edge ~config ~platform ~git_store ~roots ~repos ~lock =
   let src =
-    let+ src =
+    [
       Monorepo_git_push.v git_store ~branch:"universe-edge-monorepo"
-        (Monorepo_lock.commits lock)
-    in
-    [ src ]
+        (Monorepo_lock.commits lock);
+    ]
   in
   [
     ( "universe-edge-freestanding",
@@ -163,11 +162,10 @@ let mirage_edge ~config ~platform ~git_store ~roots ~repos ~lock =
       roots
   in
   let src =
-    let+ src =
+    [
       Monorepo_git_push.v git_store ~branch:"mirage-edge-monorepo"
-        (Monorepo_lock.commits ~filter lock)
-    in
-    [ src ]
+        (Monorepo_lock.commits ~filter lock);
+    ]
   in
   [
     ( "mirage-edge-freestanding",

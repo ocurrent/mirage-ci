@@ -34,7 +34,7 @@ let main current_config github mode auth store config
   let config =
     Common.Config.make ~secrets:(Git_store.Cluster.secrets store) config
   in
-
+  let website = Website.make () in
   let repo_mirage_dev =
     gh_head_of github gh_mirage_dev (`Ref "refs/heads/master")
   in
@@ -114,12 +114,27 @@ let main current_config github mode auth store config
              ~repos:(Repository.current_list_unfetch repos)
              github)
   in
-  let main_ci, main_routes =
+  let main_ci =
     match prs with
-    | None -> ([], [])
+    | None -> []
     | Some prs ->
-        ( [ ("mirage-main-ci", Mirage_ci_pipelines.PR.to_current prs) ],
-          Mirage_ci_pipelines.PR.routes prs )
+        let current = Current_web_pipelines.Task.current prs in
+        let state =
+          Current.list_iter ~collapse_key:"update-web-state"
+            (module struct
+              type t = Website.pipeline_state
+
+              let pp f { Current_web_pipelines.State.metadata; _ } =
+                Fmt.pf f "%s" (Website.Website_description.Pipeline.id metadata)
+
+              let compare { Current_web_pipelines.State.metadata = a; _ }
+                  { Current_web_pipelines.State.metadata = b; _ } =
+                Mirage_ci_pipelines.PR.compare_metadata a b
+            end)
+            (Website.update_state website)
+            (Current_web_pipelines.Task.state prs)
+        in
+        [ ("mirage-main-ci", current); ("mirage-state", state) ]
   in
 
   let self_deploy =
@@ -145,8 +160,7 @@ let main current_config github mode auth store config
     let routes =
       Routes.((s "login" /? nil) @--> Current_github.Auth.login auth)
       :: Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
-      :: main_routes
-      @ Current_web.routes engine
+      :: Current_web.routes engine
     in
     Current_web.Site.(v ~has_role) ~name:program_name routes
   in

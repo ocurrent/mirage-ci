@@ -97,11 +97,10 @@ let local_build ?label ~secrets ~src spec =
       secrets
     |> List.concat
   in
-  let* src = src in
   let src =
     match src with
     | [] -> `No_context
-    | [ v ] -> `Git (Current.return v |> Current_git.fetch)
+    | [ v ] -> `Git (Current_git.fetch v)
     | _ -> `Git (Current.fail "multiple sources is unsupported")
   in
   Current_docker.Default.build ?label ~pool ~pull:false ~build_args:secrets_args
@@ -120,7 +119,8 @@ let build ?label ?cache_hint context ~pool ~src spec =
   | Local _ -> Current.fail (Fmt.str "Platform %s is not host's platform" pool)
   | Cluster { profile = `Production; ocluster } ->
       to_obuilder_job spec
-      |> Current_ocluster.build_obuilder ?label ?cache_hint ocluster ~pool ~src
+      |> Current_ocluster.build_obuilder ?label ?cache_hint ocluster ~pool
+           ~src:(Current.list_seq src)
       |> Current.map ignore
   | Cluster { profile = `Docker; ocluster } ->
       let options =
@@ -132,5 +132,6 @@ let build ?label ?cache_hint context ~pool ~src spec =
         }
       in
       to_docker_job spec
-      |> Current_ocluster.build ~options ?label ?cache_hint ocluster ~pool ~src
+      |> Current_ocluster.build ~options ?label ?cache_hint ocluster ~pool
+           ~src:(Current.list_seq src)
       |> Current.map ignore

@@ -76,20 +76,22 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
   let cache_hint =
     Fmt.str "mirage-ci-skeleton-%a" Platform.pp_system platform.system
   in
-  let src =
-    let+ mirage_skeleton = mirage_skeleton in
-    [ mirage_skeleton ]
-  in
+  let src = [ mirage_skeleton ] in
   Config.build ~label ~cache_hint config
     ~pool:(Platform.ocluster_pool platform)
     ~src spec
+  |> Current_web_pipelines.Task.single label
 
 let all_in_one_test ~(platform : Platform.t) ~repos ~mirage ~config ~build_mode
     mirage_skeleton =
   targets
   |> List.filter (is_available_on platform)
   |> List.map (fun target ->
-         ( target,
-           all_in_one_test ~target ~platform ~repos ~mirage ~config ~build_mode
-             mirage_skeleton ))
-  |> Current.all_labelled
+         all_in_one_test ~target ~platform ~repos ~mirage ~config ~build_mode
+           mirage_skeleton)
+  |> Current_web_pipelines.Task.all
+  |> Current_web_pipelines.Task.map_state (fun jobs ->
+         {
+           Current_web_pipelines.State.jobs;
+           metadata = Fmt.to_to_string Platform.pp_platform platform;
+         })

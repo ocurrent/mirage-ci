@@ -87,7 +87,6 @@ let parse_opam_dev_repo dev_repo =
     if String.is_prefix ~affix:"git+" repo then String.drop ~max:4 repo
     else repo
   in
-  Printf.printf "repo: %s\n" repo;
   (repo, branch)
 
 let commits ?(filter = fun _ -> true) lock =

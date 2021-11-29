@@ -13,6 +13,6 @@ val build :
   ?cache_hint:string ->
   t ->
   pool:string ->
-  src:Current_git.Commit_id.t list Current.t ->
+  src:Current_git.Commit_id.t Current.t list ->
   Spec.t Current.t ->
   unit Current.t

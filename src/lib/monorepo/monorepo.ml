@@ -80,10 +80,7 @@ let lock ~key ~config ~store ~repos ~opam ~system =
     let+ opam = opam and+ repos = repos in
     lock_spec ~system ~repos ~opam |> upload_spec ~store ~branch:key
   in
-  let job =
-    Common.Config.build config ~pool:"linux-x86_64" ~src:(Current.return [])
-      spec
-  in
+  let job = Common.Config.build config ~pool:"linux-x86_64" ~src:[] spec in
   let k =
     let+ spec = spec and+ _ = job (* fake dependency on job *) in
     Fmt.to_to_string Obuilder_spec.pp (spec |> Spec.finish)

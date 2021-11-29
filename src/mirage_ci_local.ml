@@ -8,6 +8,9 @@ let daily = Current_cache.Schedule.v ~valid_for:(Duration.of_day 1) ()
 let main current_config mode config
     (`Pipelines_options mirage_pipelines_options) =
   let config = Common.Config.make config in
+
+  let website = Website.make () in
+
   let main_ci =
     let repo_opam =
       Current_git.clone ~schedule:daily
@@ -23,10 +26,26 @@ let main current_config mode config
   in
 
   let engine =
-    Current.Engine.create ~config:current_config (fun () -> main_ci)
+    Current.Engine.create ~config:current_config (fun () ->
+        let current = Current_web_pipelines.Task.current main_ci in
+        let state =
+          Current.list_iter ~collapse_key:"update-web-state"
+            (module struct
+              type t = Website.pipeline_state
+
+              let pp f { Current_web_pipelines.State.metadata; _ } =
+                Fmt.pf f "%s" (Website.Website_description.Pipeline.id metadata)
+
+              let compare = Stdlib.compare
+            end)
+            (Website.update_state website)
+            (Current_web_pipelines.Task.state main_ci)
+        in
+        [ ("mirage-main-ci", current); ("mirage-state", state) ]
+        |> Current.all_labelled)
   in
   let site =
-    let routes = Current_web.routes engine in
+    let routes = Current_web.routes engine @ Website.routes website in
     Current_web.Site.(v ~has_role:Current_web.Site.allow_all)
       ~name:program_name routes
   in
