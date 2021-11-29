@@ -66,13 +66,18 @@ let build_mode_to_string = function
   | `Mirage_3 -> "mirage-3"
   | `Mirage_4 -> "mirage-4"
 
+let branch_name ref =
+  match String.split_on_char '/' ref with
+  | [ "refs"; "heads"; b ] -> b
+  | _ -> "failure"
+
 let gh_id = function
   | { ref = `PR { id; _ }; owner; name; commit; build_mode; _ } ->
       Fmt.str "pr-%d-%s-%s-%s-%s" id
         (build_mode_to_string build_mode)
         owner name commit
-  | { ref = `Ref b; owner; name; commit; build_mode; _ } ->
-      Fmt.str "branch-%s-%s-%s-%s-%s" b
+  | { ref = `Ref ref; owner; name; commit; build_mode; _ } ->
+      Fmt.str "branch-%s-%s-%s-%s-%s" (branch_name ref)
         (build_mode_to_string build_mode)
         owner name commit
 
