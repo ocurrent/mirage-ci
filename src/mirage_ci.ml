@@ -127,9 +127,7 @@ let main current_config github mode auth store config
               let pp f { Current_web_pipelines.State.metadata; _ } =
                 Fmt.pf f "%s" (Website.Website_description.Pipeline.id metadata)
 
-              let compare { Current_web_pipelines.State.metadata = a; _ }
-                  { Current_web_pipelines.State.metadata = b; _ } =
-                Mirage_ci_pipelines.PR.compare_metadata a b
+              let compare = Stdlib.compare
             end)
             (Website.update_state website)
             (Current_web_pipelines.Task.state prs)
