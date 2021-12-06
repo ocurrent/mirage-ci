@@ -51,48 +51,17 @@ module Repo = struct
     { owner; name; ci; branch; all }
 end
 
-(* the exposed metadata *)
-type metadata_gh = {
-  kind : [ `Mirage | `Mirage_dev | `Mirage_skeleton | `Opam_overlays ];
-  build_mode : [ `Mirage_4 | `Mirage_3 ];
-  commit : string;
-  ref : Github.Api.Ref.t;
-  owner : string;
-  name : string;
-  friend_prs : Github.Api.Ref.pr_info list;
-}
-
-let build_mode_to_string = function
-  | `Mirage_3 -> "mirage-3"
-  | `Mirage_4 -> "mirage-4"
-
-let branch_name ref =
-  match String.split_on_char '/' ref with
-  | [ "refs"; "heads"; b ] -> b
-  | _ -> "failure"
-
-let gh_id = function
-  | { ref = `PR { id; _ }; owner; name; commit; build_mode; _ } ->
-      Fmt.str "pr-%d-%s-%s-%s-%s" id
-        (build_mode_to_string build_mode)
-        owner name commit
-  | { ref = `Ref ref; owner; name; commit; build_mode; _ } ->
-      Fmt.str "branch-%s-%s-%s-%s-%s" (branch_name ref)
-        (build_mode_to_string build_mode)
-        owner name commit
-
-type pipeline = [ `Local of [ `Mirage_4 | `Mirage_3 ] | `Github of metadata_gh ]
-type t = (unit, string, string, pipeline) Current_web_pipelines.State.pipeline
-
-let compare_metadata = Stdlib.compare
-
-let id = function
-  | `Local `Mirage_3 -> "local-mirage-3"
-  | `Local `Mirage_4 -> "local-mirage-4"
-  | `Github gh -> gh_id gh
+type t =
+  ( unit,
+    string,
+    string,
+    Website.Website_description.Pipeline.t )
+  Current_web_pipelines.State.pipeline
 
 let gh_url meta =
-  Uri.of_string (Fmt.str "https://ci.mirage.io/pipelines/%s" (gh_id meta))
+  Uri.of_string
+    (Fmt.str "https://ci.mirage.io%s"
+       (Website.pipeline_page_url (`Github meta)))
 
 let github_status_of_state meta status =
   let url = gh_url meta in
@@ -433,7 +402,7 @@ module Run = struct
                and+ ref = ref
                and+ commit = commit in
                {
-                 ref;
+                 Website.Website_description.Pipeline.Source.ref;
                  friend_prs;
                  kind =
                    (match kind with

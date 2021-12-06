@@ -5,7 +5,6 @@
   current-web-pipelines
   current_git
   current_github
-  mirage_ci_pipelines
   fmt
   obuilder-spec
   tyxml))

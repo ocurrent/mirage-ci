@@ -37,8 +37,6 @@ module Website_description = struct
   end
 
   module Pipeline = struct
-    type t = Mirage_ci_pipelines.PR.pipeline
-
     module Group = struct
       type t = Local | Mirage | Mirage_dev | Mirage_skeleton | Opam_overlays
 
@@ -53,16 +51,44 @@ module Website_description = struct
     end
 
     module Source = struct
-      type t = Mirage_ci_pipelines.PR.pipeline
+      let build_mode_to_string = function
+        | `Mirage_3 -> "mirage-3"
+        | `Mirage_4 -> "mirage-4"
+
+      let branch_name ref =
+        match String.split_on_char '/' ref with
+        | [ "refs"; "heads"; b ] -> b
+        | _ -> "failure"
+
+      (* the exposed metadata *)
+      type metadata_gh = {
+        kind : [ `Mirage | `Mirage_dev | `Mirage_skeleton | `Opam_overlays ];
+        build_mode : [ `Mirage_4 | `Mirage_3 ];
+        commit : string;
+        ref : Github.Api.Ref.t;
+        owner : string;
+        name : string;
+        friend_prs : Github.Api.Ref.pr_info list;
+      }
+
+      let gh_id = function
+        | { ref = `PR { id; _ }; owner; name; commit; build_mode; _ } ->
+            Fmt.str "pr-%d-%s-%s-%s-%s" id
+              (build_mode_to_string build_mode)
+              owner name commit
+        | { ref = `Ref ref; owner; name; commit; build_mode; _ } ->
+            Fmt.str "branch-%s-%s-%s-%s-%s" (branch_name ref)
+              (build_mode_to_string build_mode)
+              owner name commit
+
+      type t = [ `Local of [ `Mirage_4 | `Mirage_3 ] | `Github of metadata_gh ]
 
       let group = function
         | `Local _ -> Group.Local
-        | `Github { Mirage_ci_pipelines.PR.kind = `Mirage; _ } -> Mirage
-        | `Github { Mirage_ci_pipelines.PR.kind = `Mirage_dev; _ } -> Mirage_dev
-        | `Github { Mirage_ci_pipelines.PR.kind = `Mirage_skeleton; _ } ->
-            Mirage_skeleton
-        | `Github { Mirage_ci_pipelines.PR.kind = `Opam_overlays; _ } ->
-            Opam_overlays
+        | `Github { kind = `Mirage; _ } -> Mirage
+        | `Github { kind = `Mirage_dev; _ } -> Mirage_dev
+        | `Github { kind = `Mirage_skeleton; _ } -> Mirage_skeleton
+        | `Github { kind = `Opam_overlays; _ } -> Opam_overlays
 
       let build_mode_to_string = function
         | `Mirage_3 -> "mirage-3"
@@ -76,14 +102,7 @@ module Website_description = struct
       let id = function
         | `Local `Mirage_3 -> "local-mirage-3"
         | `Local `Mirage_4 -> "local-mirage-4"
-        | `Github
-            {
-              Mirage_ci_pipelines.PR.ref = `PR { id; _ };
-              owner;
-              name;
-              build_mode;
-              _;
-            } ->
+        | `Github { ref = `PR { id; _ }; owner; name; build_mode; _ } ->
             Fmt.str "pr-%d-%s-%s-%s" id
               (build_mode_to_string build_mode)
               owner name
@@ -95,10 +114,11 @@ module Website_description = struct
       let to_string = function
         | `Local `Mirage_3 -> "Local (mirage 3)"
         | `Local `Mirage_4 -> "Local (mirage 4)"
-        | `Github { Mirage_ci_pipelines.PR.ref = `PR { id; _ }; _ } ->
-            Fmt.str "PR #%d" id
+        | `Github { ref = `PR { id; _ }; _ } -> Fmt.str "PR #%d" id
         | `Github { ref = `Ref ref; _ } -> Fmt.str "Branch %s" (branch_name ref)
     end
+
+    type t = Source.t
 
     let to_link (t : t) =
       match t with
@@ -112,7 +132,11 @@ module Website_description = struct
       | `Mirage_3 -> "mirage-3"
       | `Mirage_4 -> "mirage-4"
 
-    let id = Mirage_ci_pipelines.PR.id
+    let id = function
+      | `Local `Mirage_3 -> "local-mirage-3"
+      | `Local `Mirage_4 -> "local-mirage-4"
+      | `Github gh -> Source.gh_id gh
+
     let marshal v = Marshal.to_string v []
     let unmarshal v = Marshal.from_string v 0
     let source = Fun.id
