@@ -58,10 +58,10 @@ type t =
     Website.Website_description.Pipeline.t )
   Current_web_pipelines.State.pipeline
 
-let gh_url meta =
+let gh_url (meta, stage) =
   Uri.of_string
     (Fmt.str "https://ci.mirage.io%s"
-       (Website.pipeline_page_url (`Github meta)))
+       (Website.pipeline_stage_url (`Github meta) stage))
 
 let github_status_of_state meta status =
   let url = gh_url meta in
@@ -164,6 +164,8 @@ module Run = struct
         { raw = { platform; _ } as raw; gh_commit; commit_status } =
       let open Current.Syntax in
       let pipeline = Raw.perform_test raw in
+      let open Current_web_pipelines in
+      let state = Task.state pipeline in
       let commit_status =
         match commit_status with
         | false -> Current_web_pipelines.Task.current pipeline
@@ -172,15 +174,14 @@ module Run = struct
               let+ state =
                 Current_web_pipelines.Task.current pipeline
                 |> Current.state ~hidden:true
-              and+ metadata = metadata in
-              github_status_of_state metadata state
+              and+ metadata = metadata
+              and+ stage_state = state in
+              github_status_of_state (metadata, stage_state.metadata) state
             in
             Github.Api.Commit.set_status gh_commit
               (Fmt.str "Mirage CI - %a" Platform.pp_platform platform)
               status
       in
-      let open Current_web_pipelines in
-      let state = Task.state pipeline in
       (* OK because commit_status is derived from pipeline *)
       Task.v ~current:commit_status ~state
   end
