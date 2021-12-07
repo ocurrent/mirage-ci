@@ -39,6 +39,7 @@ let make_instructions =
           run
             ~cache:[ Setup.opam_download_cache ]
             ~network:[ "host" ] "opam exec -- make depends";
+          run "opam monorepo list -l mirage.opam.locked";
           run
             ~cache:[ Setup.opam_download_cache ]
             ~network:[ "host" ] "opam exec -- make pull";
