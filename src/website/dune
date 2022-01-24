@@ -1,10 +1,4 @@
 (library
  (name website)
- (libraries
-  current_web
-  current-web-pipelines
-  current_git
-  current_github
-  fmt
-  obuilder-spec
-  tyxml))
+ (libraries current_web current-web-pipelines current_git current_github fmt
+   obuilder-spec tyxml))

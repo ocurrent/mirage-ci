@@ -39,10 +39,10 @@ let platform_id t =
   | Arm64 -> "arm64-" ^ Fmt.str "%a" pp_system t.system
   | Amd64 -> "x86_64-" ^ Fmt.str "%a" pp_system t.system
 
-  let pp_platform f t =
-    Fmt.pf f "%s-%a-%a" (arch_to_string t.arch) pp_os t.system.os pp_ocaml
-      t.system.ocaml
-  
+let pp_platform f t =
+  Fmt.pf f "%s-%a-%a" (arch_to_string t.arch) pp_os t.system.os pp_ocaml
+    t.system.ocaml
+
 let ocluster_pool { arch; _ } =
   match arch with Arm64 -> "linux-arm64" | Amd64 -> "linux-x86_64"
 
