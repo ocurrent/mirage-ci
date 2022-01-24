@@ -29,9 +29,14 @@ let make_instructions =
         | None -> Current.return []
         | Some o ->
             let+ o = o in
-            [ env "OVERLAY" (Setup.remote_uri o) ]
+            let extra_repositories =
+              o
+              |> List.map (fun (name, remote) ->
+                     Fmt.str "%s:%s" name (Setup.remote_uri remote))
+              |> String.concat ","
+            in
+            [ env "MIRAGE_EXTRA_REPOS" extra_repositories ]
       in
-
       [ run "opam exec -- make configure" ]
       @ overlay
       @ [
@@ -54,7 +59,7 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
   let spec =
     let+ repos = repos
     and+ make_instructions = make_instructions build_mode
-    and+ mirage = mirage in
+    and+ mirage = Current.option_seq mirage in
 
     let open Obuilder_spec in
     let pin_mirage =

@@ -1,4 +1,4 @@
-val add_repositories : Repository.t list -> Obuilder_spec.op list
+val add_repositories : Opam_repository.t list -> Obuilder_spec.op list
 (** The obuilder rules to add opam repositories. *)
 
 val install_tools : string list -> Obuilder_spec.op list

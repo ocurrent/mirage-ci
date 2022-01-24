@@ -22,7 +22,7 @@ let main current_config mode config
       [ ("opam", repo_opam) ]
     in
     Mirage_ci_pipelines.PR.local ~config ~options:mirage_pipelines_options
-      ~repos:(Repository.current_list_unfetch repos)
+      ~repos:(Opam_repository.current_list_unfetch repos)
   in
 
   let engine =

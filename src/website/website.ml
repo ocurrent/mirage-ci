@@ -38,14 +38,21 @@ module Website_description = struct
 
   module Pipeline = struct
     module Group = struct
-      type t = Local | Mirage | Mirage_dev | Mirage_skeleton | Opam_overlays
+      type t =
+        | Local
+        | Mirage
+        | Mirage_dev
+        | Mirage_skeleton
+        | Opam_overlays
+        | Mirage_opam_overlays
 
       let id = function
         | Local -> "local"
         | Mirage -> "mirage/mirage"
         | Mirage_dev -> "mirage/mirage-dev"
         | Mirage_skeleton -> "mirage/mirage-skeleton"
-        | Opam_overlays -> "mirage/opam-overlays"
+        | Opam_overlays -> "dune-universe/opam-overlays"
+        | Mirage_opam_overlays -> "dune-universe/mirage-opam-overlays"
 
       let to_string = id
     end
@@ -62,7 +69,8 @@ module Website_description = struct
 
       (* the exposed metadata *)
       type metadata_gh = {
-        kind : [ `Mirage | `Mirage_dev | `Mirage_skeleton | `Opam_overlays ];
+        kind :
+          [ `Mirage | `Mirage_dev | `Mirage_skeleton | `Overlay of string ];
         build_mode : [ `Mirage_4 | `Mirage_3 ];
         commit : string;
         ref : Github.Api.Ref.t;
@@ -88,7 +96,9 @@ module Website_description = struct
         | `Github { kind = `Mirage; _ } -> Mirage
         | `Github { kind = `Mirage_dev; _ } -> Mirage_dev
         | `Github { kind = `Mirage_skeleton; _ } -> Mirage_skeleton
-        | `Github { kind = `Opam_overlays; _ } -> Opam_overlays
+        | `Github { kind = `Overlay "opam-overlays"; _ } -> Opam_overlays
+        | `Github { kind = `Overlay "mirage-opam-overlays"; _ } -> Mirage_opam_overlays
+        | `Github { kind = `Overlay _; _ } -> failwith "unknown overlay repository"
 
       let build_mode_to_string = function
         | `Mirage_3 -> "mirage-3"

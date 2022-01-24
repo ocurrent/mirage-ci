@@ -57,7 +57,7 @@ let main current_config github mode auth store config
         ]
         |> Current.list_seq
       in
-      let repos_unfetched = Repository.current_list_unfetch repos in
+      let repos_unfetched = Opam_repository.current_list_unfetch repos in
       let roots = Universe.Project.packages in
       let platform =
         match Config.profile with
@@ -111,7 +111,7 @@ let main current_config github mode auth store config
         in
         Some
           (Mirage_ci_pipelines.PR.make ~config ~options:mirage_pipelines_options
-             ~repos:(Repository.current_list_unfetch repos)
+             ~repos:(Opam_repository.current_list_unfetch repos)
              github)
   in
   let main_ci =

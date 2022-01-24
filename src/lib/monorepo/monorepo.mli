@@ -3,7 +3,7 @@ type t
 
 val v :
   system:Common.Platform.system ->
-  repos:Common.Repository.fetched list Current.t ->
+  repos:Common.Opam_repository.fetched list Current.t ->
   t Current.t
 (** Build the opam monorepo tool on [system] using [repos]. *)
 
@@ -12,7 +12,7 @@ val lock :
   value:string ->
   config:Common.Config.t ->
   store:Git_store.t ->
-  repos:Common.Repository.t list Current.t ->
+  repos:Common.Opam_repository.t list Current.t ->
   opam:Opamfile.t Current.t ->
   system:Common.Platform.system ->
   t Current.t ->

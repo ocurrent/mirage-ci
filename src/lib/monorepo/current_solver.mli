@@ -1,9 +1,9 @@
 type resolution = { name : string; version : string }
-type t = { resolutions : resolution list; repos : Common.Repository.t list }
+type t = { resolutions : resolution list; repos : Common.Opam_repository.t list }
 
 val v :
   system:Common.Platform.system ->
-  repos:Common.Repository.fetched list Current.t ->
+  repos:Common.Opam_repository.fetched list Current.t ->
   packages:string list ->
   t Current.t
 (** [v ~system ~repos ~packages] resolves the requested [packages] using the

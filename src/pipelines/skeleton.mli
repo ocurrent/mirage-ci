@@ -4,10 +4,10 @@ type 'a build_mode = Mirage_3 | Mirage_4 of { overlay : 'a option }
 
 val all_in_one_test :
   platform:Platform.t ->
-  repos:Repository.t list Current.t ->
-  mirage:Current_git.Commit_id.t option Current.t ->
+  repos:Opam_repository.t list Current.t ->
+  mirage:Current_git.Commit_id.t Current.t option ->
   config:Config.t ->
-  build_mode:Current_git.Commit_id.t Current.t build_mode ->
+  build_mode:Opam_repository.t list Current.t build_mode ->
   Current_git.Commit_id.t Current.t ->
   ( unit,
     (unit, string, string) Current_web_pipelines.State.stage )
