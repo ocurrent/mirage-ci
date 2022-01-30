@@ -50,6 +50,11 @@ let make_instructions =
 (* Test all of mirage-skeleton at once *)
 let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
     ~build_mode mirage_skeleton =
+  let mirage_cmd =
+    match build_mode with
+    | Mirage_3 -> "\"mirage<4\""
+    | Mirage_4 _ -> "\"mirage>=4\""
+  in
   let spec =
     let+ repos = repos
     and+ make_instructions = make_instructions build_mode
@@ -67,7 +72,7 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
     Platform.spec platform.system
     |> Spec.add (Setup.add_repositories repos)
     |> Spec.add pin_mirage
-    |> Spec.add (Setup.install_tools [ "mirage" ])
+    |> Spec.add (Setup.install_tools [ mirage_cmd ])
     |> Spec.add
          [ copy [ "." ] ~dst:"/src/"; env "MODE" target; workdir "/src/" ]
     |> Spec.add make_instructions
