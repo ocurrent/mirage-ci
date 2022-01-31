@@ -1,5 +1,9 @@
 type resolution = { name : string; version : string }
-type t = { resolutions : resolution list; repos : Common.Opam_repository.t list }
+
+type t = {
+  resolutions : resolution list;
+  repos : Common.Opam_repository.t list;
+}
 
 val v :
   system:Common.Platform.system ->

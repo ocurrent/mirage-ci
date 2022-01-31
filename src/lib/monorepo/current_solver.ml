@@ -1,5 +1,9 @@
 type resolution = { name : string; version : string } [@@deriving yojson]
-type t = { resolutions : resolution list; repos : Common.Opam_repository.t list }
+
+type t = {
+  resolutions : resolution list;
+  repos : Common.Opam_repository.t list;
+}
 
 let solver = Solver_pool.spawn_local ()
 
