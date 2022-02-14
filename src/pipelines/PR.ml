@@ -480,7 +480,7 @@ let test_options_cmdliner =
           | `Mirage -> { acc with mirage = true }
           | `Skeleton -> { acc with skeleton = true }
           | `Dev -> { acc with dev = true }
-          | `Overlay -> { acc with dev = true })
+          | `Overlay -> { acc with overlay = true })
         { mirage = false; skeleton = false; dev = false; overlay = false }
         list
     in
@@ -525,7 +525,7 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
           Run.Pipeline_run.config;
           repos;
           tracked_repositories = config_with_mirage;
-          commit_status = enable_commit_status.skeleton;
+          commit_status = enable_commit_status.mirage;
         } );
     ]
     @ (match mirage_dev with
