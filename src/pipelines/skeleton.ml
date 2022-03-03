@@ -50,7 +50,7 @@ let make_instructions =
             ~network:[ "host" ] "opam exec -- make pull";
           env "DUNE_CACHE" "enabled";
           env "DUNE_CACHE_TRANSPORT" "direct";
-          run ~cache:[ Setup.dune_build_cache ] "opam exec -- make build";
+          run ~network:[ "host" ] ~cache:[ Setup.dune_build_cache ] "opam exec -- make build";
         ]
 
 (* Test all of mirage-skeleton at once *)
