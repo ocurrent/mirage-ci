@@ -517,7 +517,7 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
         {
           Run.Pipeline_run.config;
           repos;
-          tracked_repositories = config_without_mirage;
+          tracked_repositories = config_with_mirage;
           commit_status = enable_commit_status.skeleton;
         } );
       ( mirage,
