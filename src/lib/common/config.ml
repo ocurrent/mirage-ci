@@ -6,6 +6,7 @@ let profile =
   | Some x -> Fmt.failwith "Unknown $PROFILE setting %S" x
 
 type build_config =
+  | Config_dry
   | Config_local
   | Config_cluster of {
       connection : Current_ocluster.Connection.t;
@@ -31,11 +32,16 @@ let cmdliner =
                profile;
              })
   in
+  let dry_mode =
+    Arg.value @@ Arg.flag @@ Arg.info ~doc:"Do not run the tests" [ "dry" ]
+    |> apply (function true -> Config_dry | false -> Config_local)
+  in
   match profile with
-  | `Dev -> Term.const Config_local
+  | `Dev -> dry_mode
   | (`Production | `Docker) as profile -> ocluster_cap ~profile
 
 type t =
+  | Dry
   | Local of { secrets : (string * string) list }
   | Cluster of {
       ocluster : Current_ocluster.t;
@@ -46,6 +52,7 @@ let timeout = Duration.of_hour 1
 
 let make ?(secrets = []) build_config =
   match build_config with
+  | Config_dry -> Dry
   | Config_local -> Local { secrets }
   | Config_cluster { connection; profile } ->
       Cluster
@@ -107,6 +114,12 @@ let local_build ?label ~secrets ~src spec =
     ~dockerfile src
   |> Current.ignore_value
 
+let dry_return ?label input =
+  let open Current.Syntax in
+  Current.component "%a" Fmt.(option string) label
+  |> let> () = input in
+     Current.Primitive.const ()
+
 let build ?label ?cache_hint context ~pool ~src spec =
   let pool_is_available = function
     | "linux-x86_64" when Platform.platform_host.arch = Amd64 -> true
@@ -117,6 +130,7 @@ let build ?label ?cache_hint context ~pool ~src spec =
   | Local { secrets } when pool_is_available pool ->
       local_build ?label ~secrets ~src spec
   | Local _ -> Current.fail (Fmt.str "Platform %s is not host's platform" pool)
+  | Dry -> dry_return ?label (Current.ignore_value spec)
   | Cluster { profile = `Production; ocluster } ->
       to_obuilder_job spec
       |> Current_ocluster.build_obuilder ?label ?cache_hint ocluster ~pool
