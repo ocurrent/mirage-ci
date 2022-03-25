@@ -54,8 +54,7 @@ let main current_config mode config
        [
          Current.Engine.thread engine;
          (* The main thread evaluating the pipeline. *)
-         Current_web.run ~mode site;
-         (* Optional: provides a web UI *)
+         Current_web.run ~mode site (* Optional: provides a web UI *);
        ])
 
 (* Command-line parsing *)
