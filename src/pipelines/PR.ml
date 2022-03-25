@@ -556,7 +556,13 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
           overlays
     | Mirage_3 -> []
   in
-  List.map (fun (repo, config) -> Run.Pipeline_run.github config repo) pipelines
+  List.map
+    (fun (repo, config) ->
+      let label = repo.Github_repository.owner ^ "/" ^ repo.name in
+      Run.Pipeline_run.github config repo
+      |> Current_web_pipelines.Task.apply_current
+           (Current.collapse ~key:"repo" ~value:label ~input:(Current.return ~label ())))
+    pipelines
   |> Current_web_pipelines.Task.all
   |> Current_web_pipelines.Task.map_state List.flatten
 

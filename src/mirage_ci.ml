@@ -53,6 +53,7 @@ let main current_config github mode auth config
     | Some prs ->
         let current = Current_web_pipelines.Task.current prs in
         let state =
+          let input = Current_web_pipelines.Task.state prs in
           Current.list_iter ~collapse_key:"update-web-state"
             (module struct
               type t = Website.pipeline_state
@@ -63,7 +64,10 @@ let main current_config github mode auth config
               let compare = Stdlib.compare
             end)
             (Website.update_state website)
-            (Current_web_pipelines.Task.state prs)
+            input
+          |> Current.collapse ~key:"current-web-pipeline-internals" ~value:""
+               ~input:
+                 (Current.return ~label:"current-web-pipelines internals" ())
         in
         [ ("mirage-main-ci", current); ("mirage-state", state) ]
   in

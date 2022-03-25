@@ -114,9 +114,9 @@ let local_build ?label ~secrets ~src spec =
     ~dockerfile src
   |> Current.ignore_value
 
-let dry_return ?label input =
+let dry_return ?label ~pool input =
   let open Current.Syntax in
-  Current.component "%a" Fmt.(option string) label
+  Current.component "dry: %a (%s)" Fmt.(option string) label pool
   |> let> () = input in
      Current.Primitive.const ()
 
@@ -130,7 +130,7 @@ let build ?label ?cache_hint context ~pool ~src spec =
   | Local { secrets } when pool_is_available pool ->
       local_build ?label ~secrets ~src spec
   | Local _ -> Current.fail (Fmt.str "Platform %s is not host's platform" pool)
-  | Dry -> dry_return ?label (Current.ignore_value spec)
+  | Dry -> dry_return ?label ~pool (Current.ignore_value spec)
   | Cluster { profile = `Production; ocluster } ->
       to_obuilder_job spec
       |> Current_ocluster.build_obuilder ?label ?cache_hint ocluster ~pool
