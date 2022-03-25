@@ -188,8 +188,6 @@ module Website_description = struct
               ~a:[ a_href "https://github.com/ocurrent/mirage-ci" ]
               [ txt "https://github.com/ocurrent/mirage-ci" ];
           ];
-        br ();
-        span [ txt "@TheLortex: I'm rolling out a new UI this week (29 nov)" ];
       ]
 end
 
