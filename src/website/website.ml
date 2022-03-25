@@ -76,7 +76,7 @@ module Website_description = struct
         ref : Github.Api.Ref.t;
         owner : string;
         name : string;
-        friend_prs : Github.Api.Ref.pr_info list;
+        friend_prs : (string * Github.Api.Ref.pr_info) list;
       }
 
       let gh_id = function
@@ -126,7 +126,8 @@ module Website_description = struct
       let to_string = function
         | `Local `Mirage_3 -> "Local (mirage 3)"
         | `Local `Mirage_4 -> "Local (mirage 4)"
-        | `Github { ref = `PR { id; _ }; _ } -> Fmt.str "PR #%d" id
+        | `Github { ref = `PR { id; title; _ }; _ } ->
+            Fmt.str "PR #%d: %s" id title
         | `Github { ref = `Ref ref; _ } -> Fmt.str "Branch %s" (branch_name ref)
     end
 
@@ -166,15 +167,43 @@ module Website_description = struct
           txt ("@" ^ commit_hash)
 
     let render (t : t) =
-      let pr_name =
-        match t with
-        | `Github { ref = `PR { title; _ }; _ } -> h2 [ txt title ]
-        | _ -> txt ""
-      in
-      div
-        [
-          pr_name; txt "Link to "; a ~a:[ a_href (to_link t) ] [ txt "Github" ];
-        ]
+      match t with
+      | `Local _ -> div []
+      | `Github { friend_prs = []; _ } ->
+          div [ txt "Link to "; a ~a:[ a_href (to_link t) ] [ txt "Github" ] ]
+      | `Github { friend_prs; _ } ->
+          div
+            [
+              txt "Link to ";
+              a ~a:[ a_href (to_link t) ] [ txt "Github" ];
+              br ();
+              h3 [ txt "Friend PRs" ];
+              i [ txt "This PR is tested along with the following PRs:" ];
+              ul
+                (List.map
+                   (fun (repo, { Github.Api.Ref.id; title; _ }) ->
+                     li
+                       [
+                         txt (Fmt.str "%s: PR " repo);
+                         a
+                           ~a:
+                             [
+                               a_href
+                                 (Fmt.str "https://github.com/%s/pull/%d" repo
+                                    id);
+                             ]
+                           [ txt (Fmt.str "#%d" id) ];
+                         txt (Fmt.str ": %s" title);
+                       ])
+                   friend_prs);
+              br ();
+              i
+                [
+                  txt
+                    "To use that feature, simply mention target PR in the \
+                     original PR's description.";
+                ];
+            ]
   end
 
   let render_index () =

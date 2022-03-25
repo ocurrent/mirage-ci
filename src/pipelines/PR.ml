@@ -115,7 +115,7 @@ module Friend_PR = struct
       friends
     |> function
     | None -> (None, Github.Api.Commit.id branch)
-    | Some (pr, value) -> (Some pr, value)
+    | Some (pr, value) -> (Some (repo.owner ^ "/" ^ repo.name, pr), value)
 end
 
 module Run = struct
@@ -561,7 +561,8 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
       let label = repo.Github_repository.owner ^ "/" ^ repo.name in
       Run.Pipeline_run.github config repo
       |> Current_web_pipelines.Task.apply_current
-           (Current.collapse ~key:"repo" ~value:label ~input:(Current.return ~label ())))
+           (Current.collapse ~key:"repo" ~value:label
+              ~input:(Current.return ~label ())))
     pipelines
   |> Current_web_pipelines.Task.all
   |> Current_web_pipelines.Task.map_state List.flatten
