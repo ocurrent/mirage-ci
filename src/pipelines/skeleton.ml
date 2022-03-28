@@ -69,12 +69,17 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
 
     let open Obuilder_spec in
     let pin_mirage =
-      match mirage with
-      | Some commit ->
+      match (mirage, build_mode) with
+      | Some commit, Mirage_3 ->
+          [
+            run ~network:[ "host" ] "opam pin -ny %s --with-version 3.10.8"
+              (Setup.remote_uri commit);
+          ]
+      | Some commit, Mirage_4 _ ->
           [
             run ~network:[ "host" ] "opam pin -ny %s" (Setup.remote_uri commit);
           ]
-      | None -> []
+      | None, _ -> []
     in
     Platform.spec platform.system
     |> Spec.add (Setup.add_repositories repos)
