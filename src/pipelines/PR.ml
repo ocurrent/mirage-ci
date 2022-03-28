@@ -100,7 +100,6 @@ module Friend_PR = struct
 
   let resolve friends (repo : Github_repository.t) =
     let+ friends = friends and+ refs = repo.all and+ branch = repo.branch in
-    Printf.printf "Resolving for %s/%s\n" repo.owner repo.name;
     List.find_map
       (fun { owner; name; id } ->
         if repo.owner = owner && repo.name = name then

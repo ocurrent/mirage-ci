@@ -129,6 +129,12 @@ module Website_description = struct
         | `Github { ref = `PR { id; title; _ }; _ } ->
             Fmt.str "PR #%d: %s" id title
         | `Github { ref = `Ref ref; _ } -> Fmt.str "Branch %s" (branch_name ref)
+
+      let compare a b = match a, b with
+        | `Github { ref = `Ref ref_a; _ }, `Github { ref = `Ref ref_b; _ } -> String.compare ref_a ref_b
+        | `Github { ref = `PR {id=id_a; _}; _ }, `Github { ref = `PR {id=id_b; _}; _ } -> id_b - id_a
+        | a, b -> String.compare (to_string a) (to_string b)
+      
     end
 
     type t = Source.t
