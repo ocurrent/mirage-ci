@@ -93,7 +93,9 @@ let main current_config github mode auth config
   let site =
     let routes =
       Routes.((s "login" /? nil) @--> Current_github.Auth.login auth)
-      :: Routes.((s "webhooks" / s "github" /? nil) @--> Github.webhook)
+      :: Routes.(
+           (s "webhooks" / s "github" /? nil)
+           @--> Github.webhook ~engine ~webhook_secret:"" ~has_role)
       :: Current_web.routes engine
       @ Website.routes website
     in
@@ -132,7 +134,9 @@ let github_config =
        [ "github-token-file" ]
   |> named
        (Option.map (fun x ->
-            Current_github.Api.of_oauth @@ String.trim (read_file x)))
+            Current_github.Api.of_oauth
+              ~token:(String.trim (read_file x))
+              ~webhook_secret:"TODO"))
 
 let self_deploy =
   Arg.value
