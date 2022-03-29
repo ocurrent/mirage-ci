@@ -586,7 +586,7 @@ let tests options =
           mirage_dev =
             Some { org = "mirage"; name = "mirage-dev"; branch = "master" };
           mirage_skeleton =
-            { org = "mirage"; name = "mirage-skeleton"; branch = "mirage-dev" };
+            { org = "mirage"; name = "mirage-skeleton"; branch = "main" };
           build_mode =
             Mirage_4
               {
@@ -619,7 +619,7 @@ let tests options =
           mirage_dev =
             Some { org = "mirage"; name = "mirage-dev"; branch = "3" };
           mirage_skeleton =
-            { org = "mirage"; name = "mirage-skeleton"; branch = "master" };
+            { org = "mirage"; name = "mirage-skeleton"; branch = "mirage-3" };
           build_mode = Mirage_3;
         })
       options.mirage_3
