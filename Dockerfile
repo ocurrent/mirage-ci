@@ -3,7 +3,6 @@ RUN sudo ln -f /usr/bin/opam-2.1 /usr/bin/opam && opam update
 RUN sudo apt-get update && sudo apt-get install libev-dev capnproto graphviz m4 pkg-config libsqlite3-dev libgmp-dev -y --no-install-recommends
 RUN cd ~/opam-repository && git pull origin master && git reset --hard 2b4b9092c09d189e80d1fec1f48361839143ff7c && opam update
 COPY --chown=opam \
-	vendor/ocurrent/current_ansi.opam \
 	vendor/ocurrent/current_docker.opam \
 	vendor/ocurrent/current_github.opam \
 	vendor/ocurrent/current_git.opam \
@@ -14,8 +13,7 @@ COPY --chown=opam \
 	vendor/ocurrent/current_web.opam \
 	/src/vendor/ocurrent/
 WORKDIR /src
-RUN opam pin add -yn current_ansi.dev "./vendor/ocurrent" && \
-    opam pin add -yn current_docker.dev "./vendor/ocurrent" && \
+RUN opam pin add -yn current_docker.dev "./vendor/ocurrent" && \
     opam pin add -yn current_github.dev "./vendor/ocurrent" && \
     opam pin add -yn current_git.dev "./vendor/ocurrent" && \
     opam pin add -yn current_incr.dev "./vendor/ocurrent" && \
