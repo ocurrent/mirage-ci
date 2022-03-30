@@ -35,6 +35,7 @@
   (current (>= 0.3))
   current_web
   current_git
+  current_github
   fmt
   lwt
   cmdliner
