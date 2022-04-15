@@ -90,12 +90,16 @@ let main current_config github mode auth config
         Current.all_labelled (main_ci @ self_deploy))
   in
   let has_role = if auth = None then Current_web.Site.allow_all else has_role in
+  let webhook_secret = match github with
+    | Some api -> Current_github.Api.webhook_secret api
+    | None -> ""
+  in
   let site =
     let routes =
       Routes.((s "login" /? nil) @--> Current_github.Auth.login auth)
       :: Routes.(
            (s "webhooks" / s "github" /? nil)
-           @--> Github.webhook ~engine ~webhook_secret:"" ~has_role)
+           @--> Github.webhook ~engine ~webhook_secret ~has_role)
       :: Current_web.routes engine
       @ Website.routes website
     in
@@ -128,15 +132,27 @@ let github_config =
         really_input_string ch len)
       ~finally:(fun () -> close_in ch)
   in
-  Arg.value
-  @@ Arg.opt Arg.(some file) None
-  @@ Arg.info ~doc:"A file containing the GitHub OAuth token." ~docv:"PATH"
-       [ "github-token-file" ]
-  |> named
-       (Option.map (fun x ->
-            Current_github.Api.of_oauth
-              ~token:(String.trim (read_file x))
-              ~webhook_secret:"TODO"))
+  let token =
+    Arg.value
+    @@ Arg.opt Arg.(some file) None
+    @@ Arg.info ~doc:"A file containing the GitHub OAuth token." ~docv:"PATH"
+        [ "github-token-file" ]
+  in
+  let webhook_secret =
+    Arg.value
+    @@ Arg.opt Arg.(some file) None
+    @@ Arg.info ~doc:"A file containing the GitHub webhook secret." ~docv:"PATH"
+        [ "github-webhook-secret-file" ]
+  in
+  Term.(
+      const (fun x y -> match (x,y) with
+       | Some token, Some webhook_secret ->
+          Some (Current_github.Api.of_oauth
+            ~token:(String.trim (read_file token))
+            ~webhook_secret:(String.trim (read_file webhook_secret)))
+       | _ -> None)
+      $ token
+      $ webhook_secret)
 
 let self_deploy =
   Arg.value
