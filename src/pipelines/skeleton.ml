@@ -43,7 +43,8 @@ let make_instructions =
           run ~network:[ "host" ] "opam exec -- make lock";
           run
             ~cache:[ Setup.opam_download_cache ]
-            ~network:[ "host" ] "opam exec -- make depends";
+            ~network:[ "host" ]
+            "sudo apt-get update && opam exec -- make depends";
           run "opam monorepo list -l mirage.opam.locked";
           run
             ~cache:[ Setup.opam_download_cache ]
