@@ -20,5 +20,5 @@ let install_tools tools =
   let tools_s = String.concat " " tools in
   [
     Obuilder_spec.run ~network ~cache:[ opam_download_cache ]
-      "opam install -y %s" tools_s;
+      "sudo apt-get update && opam install -y %s" tools_s;
   ]
