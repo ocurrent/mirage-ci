@@ -90,7 +90,8 @@ let main current_config github mode auth config
         Current.all_labelled (main_ci @ self_deploy))
   in
   let has_role = if auth = None then Current_web.Site.allow_all else has_role in
-  let webhook_secret = match github with
+  let webhook_secret =
+    match github with
     | Some api -> Current_github.Api.webhook_secret api
     | None -> ""
   in
@@ -136,23 +137,25 @@ let github_config =
     Arg.value
     @@ Arg.opt Arg.(some file) None
     @@ Arg.info ~doc:"A file containing the GitHub OAuth token." ~docv:"PATH"
-        [ "github-token-file" ]
+         [ "github-token-file" ]
   in
   let webhook_secret =
     Arg.value
     @@ Arg.opt Arg.(some file) None
     @@ Arg.info ~doc:"A file containing the GitHub webhook secret." ~docv:"PATH"
-        [ "github-webhook-secret-file" ]
+         [ "github-webhook-secret-file" ]
   in
   Term.(
-      const (fun x y -> match (x,y) with
-       | Some token, Some webhook_secret ->
-          Some (Current_github.Api.of_oauth
-            ~token:(String.trim (read_file token))
-            ~webhook_secret:(String.trim (read_file webhook_secret)))
-       | _ -> None)
-      $ token
-      $ webhook_secret)
+    const (fun x y ->
+        match (x, y) with
+        | Some token, Some webhook_secret ->
+            Some
+              (Current_github.Api.of_oauth
+                 ~token:(String.trim (read_file token))
+                 ~webhook_secret:(String.trim (read_file webhook_secret)))
+        | _ -> None)
+    $ token
+    $ webhook_secret)
 
 let self_deploy =
   Arg.value
@@ -166,7 +169,8 @@ let self_deploy =
 
 let cmd =
   let doc = "an OCurrent pipeline" in
-  ( Term.(
+  let term =
+    Term.(
       const main
       $ Current.Config.cmdliner
       $ github_config
@@ -174,7 +178,9 @@ let cmd =
       $ Current_github.Auth.cmdliner
       $ Common.Config.cmdliner
       $ main_ci
-      $ self_deploy),
-    Term.info program_name ~doc )
+      $ self_deploy)
+  in
+  let info = Cmd.info program_name ~doc in
+  Cmd.v info (Term.term_result term)
 
-let () = Term.(exit @@ eval cmd)
+let () = exit @@ Cmd.eval cmd
