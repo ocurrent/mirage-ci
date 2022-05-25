@@ -69,12 +69,15 @@ let main_ci =
 
 let cmd =
   let doc = "an OCurrent pipeline" in
-  ( Term.(
+  let term =
+    Term.(
       const main
       $ Current.Config.cmdliner
       $ Current_web.cmdliner
       $ Common.Config.cmdliner
-      $ main_ci),
-    Term.info program_name ~doc )
+      $ main_ci)
+  in
+  let info = Cmd.info program_name ~doc in
+  Cmd.v info (Term.term_result term)
 
-let () = Term.(exit @@ eval cmd)
+let () = exit @@ Cmd.eval cmd
