@@ -30,6 +30,14 @@ By default, two testing workflows are implemented:
 repositories mention each other. In that case, they will be
 tested together.
 
+## Updating the opam-repository commit
+
+The opam-repository commit used to test the applications is updated *once a day*. 
+It's possible to manually ask the CI to update the commit:
+- go to the pipeline page: https://ci.mirage.io/?repo=mirage/mirage-skeleton&
+- click on the `clone https://github.com/ocaml/opam-repository master` box
+- click on `Rebuild`
+
 ## Running
 
 You need an ocluster submission token and a git server on which
