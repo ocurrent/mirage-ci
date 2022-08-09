@@ -95,12 +95,13 @@ let main current_config github mode auth config
     | Some api -> Current_github.Api.webhook_secret api
     | None -> ""
   in
+  let get_job_ids ~owner:_ ~name:_ ~hash:_ = [] in
   let site =
     let routes =
       Routes.((s "login" /? nil) @--> Current_github.Auth.login auth)
       :: Routes.(
            (s "webhooks" / s "github" /? nil)
-           @--> Github.webhook ~engine ~webhook_secret ~has_role)
+           @--> Github.webhook ~engine ~webhook_secret ~get_job_ids)
       :: Current_web.routes engine
       @ Website.routes website
     in

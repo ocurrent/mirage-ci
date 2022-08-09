@@ -37,7 +37,7 @@ depends: [
   "current_github"
   "fmt"
   "lwt"
-  "cmdliner" {>= "1.1.0"}
+  "cmdliner" {>= "0.9.8"}
   "opam-file-format"
   "lambdasoup"
   "dockerfile"

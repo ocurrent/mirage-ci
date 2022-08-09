@@ -38,7 +38,7 @@
   current_github
   fmt
   lwt
-  cmdliner
+  (cmdliner (>= 0.9.8))
   opam-file-format
   lambdasoup
   dockerfile
