@@ -6,4 +6,5 @@
 	url = https://github.com/ocurrent/ocurrent
 [submodule "vendor/current-web-pipelines"]
 	path = vendor/current-web-pipelines
-	url = https://github.com/benmandrew/current-web-pipelines.git
+	url = https://github.com/tarides/current-web-pipelines.git
+	branch = ocurrent-6.3.0
