@@ -103,7 +103,7 @@ let main current_config github mode auth config
            (s "webhooks" / s "github" /? nil)
            @--> Github.webhook ~engine ~webhook_secret ~get_job_ids)
       :: Current_web.routes engine
-      @ Website.routes website
+      @ Website.routes website engine
     in
     Current_web.Site.(v ~has_role) ~name:program_name routes
   in

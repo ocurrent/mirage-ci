@@ -45,7 +45,7 @@ let main current_config mode config
         |> Current.all_labelled)
   in
   let site =
-    let routes = Current_web.routes engine @ Website.routes website in
+    let routes = Current_web.routes engine @ Website.routes website engine in
     Current_web.Site.(v ~has_role:Current_web.Site.allow_all)
       ~name:program_name routes
   in
