@@ -1,4 +1,5 @@
 # Mirage CI
+[![OCaml-CI Build Status](https://img.shields.io/endpoint?url=https%3A%2F%2Fci.ocamllabs.io%2Fbadge%2Focurrent%2Fmirage-ci%2Fmaster&logo=ocaml)](https://ci.ocamllabs.io/github/ocurrent/mirage-ci)
 
 This CI is a set of [ocurrent](https://github.com/ocurrent/ocurrent)
 pipelines testing various things for the Mirage project.
