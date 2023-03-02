@@ -19,7 +19,7 @@ let make base =
     base;
     ops =
       [
-        user ~uid:1000 ~gid:1000;
+        user_unix ~uid:1000 ~gid:1000;
         workdir "/home/opam";
         run "sudo chown opam:opam /home/opam";
         run "sudo ln -f /usr/bin/opam-2.1 /usr/bin/opam && opam update";

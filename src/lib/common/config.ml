@@ -75,7 +75,7 @@ let to_docker_job build_spec =
   let open Current.Syntax in
   let spec_str =
     let+ build_spec = build_spec in
-    Obuilder_spec.Docker.dockerfile_of_spec ~buildkit:true
+    Obuilder_spec.Docker.dockerfile_of_spec ~buildkit:true ~os:`Unix
       (build_spec |> Spec.finish)
   in
   `Contents spec_str
@@ -89,6 +89,7 @@ let local_build ?label ~secrets ~src spec =
     let dockerfile =
       let+ spec = spec in
       Obuilder_spec.Docker.dockerfile_of_spec ~buildkit:true (Spec.finish spec)
+        ~os:`Unix
     in
     let path =
       let+ dockerfile = dockerfile in

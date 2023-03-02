@@ -4,8 +4,8 @@ synopsis: "An OCurrent pipeline"
 description: "A longer description"
 maintainer: ["lucas@tarides.com"]
 authors: ["lucas@tarides.com"]
-homepage: "https://github.com/TheLortex/mirage-ci"
-bug-reports: "https://github.com/TheLortex/mirage-ci/issues"
+homepage: "https://github.com/ocurrent/mirage-ci"
+bug-reports: "https://github.com/ocurrent/mirage-ci/issues"
 depends: [
   "dune" {>= "2.0"}
   "uri" {>= "4.2.0"}
@@ -25,13 +25,13 @@ depends: [
   "duration" {>= "0.2.0"}
   "digestif" {>= "1.0.1"}
   "cstruct" {>= "6.0.1"}
-  "capnp-rpc-net" {>= "1.2"}
-  "capnp-rpc-lwt" {>= "1.2"}
-  "capnp-rpc" {>= "1.2"}
+  "capnp-rpc-net" {>= "1.2.3"}
+  "capnp-rpc-lwt" {>= "1.2.3"}
+  "capnp-rpc" {>= "1.2.3"}
   "capnp" {>= "3.4.0"}
   "bos" {>= "0.2.1"}
   "astring" {>= "0.8.5"}
-  "current" {>= "0.3"}
+  "current" {>= "0.6.4"}
   "current_web"
   "current_git"
   "current_github"
@@ -43,7 +43,7 @@ depends: [
   "dockerfile"
   "obuilder-spec"
   "opam-0install"
-  "capnp-rpc-unix"
+  "capnp-rpc-unix" {>= "1.2.3"}
   "opam-format"
   "git-unix"
   "ocaml" {>= "4.10.0"}
@@ -62,4 +62,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/TheLortex/mirage-ci.git"
+dev-repo: "git+https://github.com/ocurrent/mirage-ci.git"

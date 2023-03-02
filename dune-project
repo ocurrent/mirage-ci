@@ -1,7 +1,7 @@
 (lang dune 2.0)
 (name mirage-ci)
 (generate_opam_files true)
-(source (github TheLortex/mirage-ci))
+(source (github ocurrent/mirage-ci))
 (authors "lucas@tarides.com")
 (maintainers "lucas@tarides.com")
 (package
@@ -26,13 +26,13 @@
   (duration (>= 0.2.0))
   (digestif (>= 1.0.1))
   (cstruct (>= 6.0.1))
-  (capnp-rpc-net (>= 1.2))
-  (capnp-rpc-lwt (>= 1.2))
-  (capnp-rpc (>= 1.2))
+  (capnp-rpc-net (>= 1.2.3))
+  (capnp-rpc-lwt (>= 1.2.3))
+  (capnp-rpc (>= 1.2.3))
   (capnp (>= 3.4.0))
   (bos (>= 0.2.1))
   (astring (>= 0.8.5))
-  (current (>= 0.3))
+  (current (>= 0.6.4))
   current_web
   current_git
   current_github
@@ -44,7 +44,7 @@
   dockerfile
   obuilder-spec
   opam-0install
-  capnp-rpc-unix
+  (capnp-rpc-unix (>= 1.2.3))
   opam-format
   git-unix
   (ocaml (>= 4.10.0))))
