@@ -2,12 +2,12 @@
 (name mirage-ci)
 (generate_opam_files true)
 (source (github ocurrent/mirage-ci))
-(authors "lucas@tarides.com")
-(maintainers "lucas@tarides.com")
+(authors "Lucas Pluvinage <lucas@tarides.com>" "Thomas Gazagnaire <thomas@gazagnaire.org>" "Tim McGilchrist <timmcgil@gmail.com>" "Thomas Leonard <talex5@gmail.com>" "benmandrew <benmandrew@gmail.com>" "Navin Keswani <navin@novemberkilo.com>" "Romain Calascibetta <romain.calascibetta@gmail.com>")
+(maintainers "alpha@tarides.com" "Tim McGilchrist <timmcgil@gmail.com>")
 (package
  (name mirage-ci)
- (synopsis "An OCurrent pipeline")
- (description "A longer description")
+ (synopsis "OCurrent pipelines for testing MirageOS")
+ (description "This CI is a set of OCurrent pipelines testing various things for the Mirage project.")
  (depends
   (uri (>= 4.2.0))
   (tyxml (>= 4.5.0))
@@ -47,4 +47,4 @@
   (capnp-rpc-unix (>= 1.2.3))
   opam-format
   git-unix
-  (ocaml (>= 4.10.0))))
+  (ocaml (>= 4.12.1))))
