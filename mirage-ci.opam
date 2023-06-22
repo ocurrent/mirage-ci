@@ -16,7 +16,8 @@ authors: [
 homepage: "https://github.com/ocurrent/mirage-ci"
 bug-reports: "https://github.com/ocurrent/mirage-ci/issues"
 depends: [
-  "dune" {>= "2.0"}
+  "dune" {>= "3.7"}
+  "ocaml" {>= "4.14.1"}
   "uri" {>= "4.2.0"}
   "tyxml" {>= "4.5.0"}
   "stdint" {>= "0.7.0"}
@@ -55,10 +56,10 @@ depends: [
   "capnp-rpc-unix" {>= "1.2.3"}
   "opam-format"
   "git-unix"
-  "ocaml" {>= "4.12.1"}
+  "odoc" {with-doc}
 ]
 build: [
-  ["dune" "subst"] {pinned}
+  ["dune" "subst"] {dev}
   [
     "dune"
     "build"

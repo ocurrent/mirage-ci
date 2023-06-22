@@ -2,8 +2,20 @@
 
 (library
  (name common)
- (libraries ocluster-api bos cmdliner capnp-rpc-unix duration result current
-   current_git current_docker current.fs fpath fmt obuilder-spec
-   current_ocluster)
+ (libraries
+  ocluster-api
+  bos
+  cmdliner
+  capnp-rpc-unix
+  duration
+  result
+  current
+  current_git
+  current_docker
+  current.fs
+  fpath
+  fmt
+  obuilder-spec
+  current_ocluster)
  (preprocess
   (pps ppx_deriving_yojson ppx_deriving.std)))
