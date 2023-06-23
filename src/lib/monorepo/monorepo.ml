@@ -6,7 +6,7 @@ module Git_store = Git_store
 (*****************  LOCK  *******************)
 (********************************************)
 
-type t = { solver : Current_solver.t }
+type t = { solver : Current_solver.t } [@@ocaml.warning "-69"]
 
 let v ~system ~repos =
   let+ solver = Current_solver.v ~system ~repos ~packages:[ "opam-monorepo" ] in

@@ -2,9 +2,32 @@
 
 (library
  (name monorepo_lib)
- (libraries common fpath result capnp-rpc capnp-rpc-net mirage-flow cstruct
-   bos mirage-crypto opam-format current.term duration current current.cache
-   current_git astring cmdliner fmt.tty lwt lwt.unix obuilder-spec
-   opam-file-format capnp-rpc-lwt capnp-rpc-unix current_ocluster solver_api)
+ (libraries
+  common
+  fpath
+  result
+  capnp-rpc
+  capnp-rpc-net
+  mirage-flow
+  cstruct
+  bos
+  mirage-crypto
+  opam-format
+  current.term
+  duration
+  current
+  current.cache
+  current_git
+  astring
+  cmdliner
+  fmt.tty
+  lwt
+  lwt.unix
+  obuilder-spec
+  opam-file-format
+  capnp-rpc-lwt
+  capnp-rpc-unix
+  current_ocluster
+  solver_api)
  (preprocess
   (pps ppx_deriving_yojson ppx_deriving.std)))
