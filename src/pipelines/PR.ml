@@ -211,7 +211,7 @@ module Run = struct
     type local = {
       config : Config.t;
       repos : Opam_repository.t list Current.t;
-      mirage : Git.Commit_id.t Current.t;
+      mirage : Git.Commit_id.t Current.t option;
       mirage_skeleton : Git.Commit_id.t Current.t;
       mirage_dev : Git.Commit_id.t Current.t option;
       build_mode : Opam_repository.t list Current.t Skeleton.build_mode;
@@ -228,7 +228,7 @@ module Run = struct
             mirage_dev;
             platform = Common.Platform.platform_host;
             mirage_skeleton;
-            mirage = Some mirage;
+            mirage;
             build_mode;
           }
       in
@@ -484,12 +484,7 @@ type context = {
 let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
     { config; enable_commit_status; repos } =
   let config_with_mirage =
-    {
-      Run.Pipeline_run.mirage = Some mirage;
-      mirage_dev;
-      mirage_skeleton;
-      build_mode;
-    }
+    { Run.Pipeline_run.mirage; mirage_dev; mirage_skeleton; build_mode }
   in
   let config_without_mirage =
     { Run.Pipeline_run.mirage = None; mirage_dev; mirage_skeleton; build_mode }
@@ -504,14 +499,19 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
           tracked_repositories = config_with_mirage;
           commit_status = enable_commit_status.skeleton;
         } );
-      ( mirage,
-        {
-          Run.Pipeline_run.config;
-          repos;
-          tracked_repositories = config_with_mirage;
-          commit_status = enable_commit_status.mirage;
-        } );
     ]
+    @ (match mirage with
+      | None -> []
+      | Some mirage ->
+          [
+            ( mirage,
+              {
+                Run.Pipeline_run.config;
+                repos;
+                tracked_repositories = config_with_mirage;
+                commit_status = enable_commit_status.mirage;
+              } );
+          ])
     @ (match mirage_dev with
       | Some mirage_dev ->
           [
@@ -554,51 +554,79 @@ type repo = { org : string; name : string; branch : string }
 
 type test_set = {
   enable_commit_status : enable_commit_status;
-  mirage : repo;
+  mirage : repo option;
   mirage_skeleton : repo;
   mirage_dev : repo option;
   build_mode : (string * repo) list Skeleton.build_mode;
 }
 
 let tests options =
-  let m4 =
-    Option.map
-      (fun enable_commit_status ->
-        {
-          enable_commit_status;
-          mirage = { org = "mirage"; name = "mirage"; branch = "main" };
-          mirage_dev =
-            Some { org = "mirage"; name = "mirage-dev"; branch = "master" };
-          mirage_skeleton =
-            { org = "mirage"; name = "mirage-skeleton"; branch = "main" };
-          build_mode =
-            Skeleton.Mirage_4
-              {
-                overlay =
-                  Some
-                    [
-                      ( "opam-overlays",
-                        {
-                          org = "dune-universe";
-                          name = "opam-overlays";
-                          branch = "master";
-                        } );
-                      ( "mirage-opam-overlays",
-                        {
-                          org = "dune-universe";
-                          name = "mirage-opam-overlays";
-                          branch = "main";
-                        } );
-                    ];
-              };
-        })
-      options.mirage_4
-  in
-  Option.to_list m4
+  Option.value ~default:[]
+    (Option.map
+       (fun enable_commit_status ->
+         [
+           {
+             enable_commit_status;
+             mirage = None;
+             mirage_skeleton =
+               { org = "mirage"; name = "mirage-skeleton"; branch = "main" };
+             mirage_dev = None;
+             build_mode =
+               Skeleton.Mirage_4
+                 {
+                   overlay =
+                     Some
+                       [
+                         ( "opam-overlays",
+                           {
+                             org = "dune-universe";
+                             name = "opam-overlays";
+                             branch = "master";
+                           } );
+                         ( "mirage-opam-overlays",
+                           {
+                             org = "dune-universe";
+                             name = "mirage-opam-overlays";
+                             branch = "main";
+                           } );
+                       ];
+                 };
+           };
+           {
+             enable_commit_status;
+             mirage = Some { org = "mirage"; name = "mirage"; branch = "main" };
+             mirage_skeleton =
+               { org = "mirage"; name = "mirage-skeleton"; branch = "main" };
+             mirage_dev =
+               Some { org = "mirage"; name = "mirage-dev"; branch = "master" };
+             build_mode =
+               Skeleton.Mirage_4
+                 {
+                   overlay =
+                     Some
+                       [
+                         ( "opam-overlays",
+                           {
+                             org = "dune-universe";
+                             name = "opam-overlays";
+                             branch = "master";
+                           } );
+                         ( "mirage-opam-overlays",
+                           {
+                             org = "dune-universe";
+                             name = "mirage-opam-overlays";
+                             branch = "main";
+                           } );
+                       ];
+                 };
+           };
+         ])
+       options.mirage_4)
 
-(* WE PERFORM TWO SETS OF TESTS
-   - mirage skeleton 'master' / mirage '3' / mirage-dev '3'
-   - mirage skeleton 'mirage-dev' / mirage 'main' / mirage-dev 'master' *)
+(* WE PERFORM TWO SET OF TESTS
+   - mirage skeleton 'main' / mirage released to opam repository
+   - mirage skeleton 'dev' / mirage 'main' / mirage-dev 'master'
+*)
 let make ~config ~options ~repos github =
   let github_setup { branch; org; name } =
     Github_repository.github_setup ~branch ~github org name
@@ -615,7 +643,7 @@ let make ~config ~options ~repos github =
          }
        ->
          let ctx = { config; enable_commit_status; repos } in
-         let mirage = github_setup mirage in
+         let mirage = Option.map github_setup mirage in
          let mirage_skeleton = github_setup mirage_skeleton in
          let mirage_dev = Option.map github_setup mirage_dev in
          let build_mode =
@@ -638,7 +666,7 @@ let local ~config ~options ~repos =
   in
   tests options
   |> List.map (fun { mirage; mirage_dev; mirage_skeleton; build_mode; _ } ->
-         let mirage = github_setup mirage in
+         let mirage = Option.map github_setup mirage in
          let mirage_skeleton = github_setup mirage_skeleton in
          let mirage_dev = Option.map github_setup mirage_dev in
          let build_mode =
