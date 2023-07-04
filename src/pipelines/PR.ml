@@ -238,8 +238,7 @@ module Run = struct
           {
             Current_web_pipelines.State.stages = [ stage ];
             metadata =
-              (match build_mode with
-              | Skeleton.Mirage_4 _ -> `Mirage_4);
+              (match build_mode with Skeleton.Mirage_4 _ -> `Mirage_4);
           };
         ]
       in
@@ -260,9 +259,7 @@ module Run = struct
       (Current.map fst resolved, Current.map snd resolved)
 
     let id_of gh_commit = Current.map Github.Api.Commit.id gh_commit
-
-    let build_mode = function
-      | Skeleton.Mirage_4 _ -> `Mirage_4
+    let build_mode = function Skeleton.Mirage_4 _ -> `Mirage_4
 
     let resolve_repo ~friends source_repo repo =
       if Github_repository.equal source_repo repo then
@@ -317,7 +314,8 @@ module Run = struct
       (Current.map Option.to_list friend_prs, resolved)
 
     let build_mode_map fn = function
-      | Skeleton.Mirage_4 { overlay } -> Skeleton.Mirage_4 { overlay = (Option.map fn) overlay }
+      | Skeleton.Mirage_4 { overlay } ->
+          Skeleton.Mirage_4 { overlay = (Option.map fn) overlay }
 
     let friend_pr_merge lst = Current.list_seq lst |> Current.map List.flatten
 
@@ -442,9 +440,7 @@ type enable_commit_status = {
   overlay : bool;
 }
 
-type test_options = {
-  mirage_4 : enable_commit_status option;
-}
+type test_options = { mirage_4 : enable_commit_status option }
 
 let is_enabled t = Option.is_some t.mirage_4
 
@@ -475,9 +471,7 @@ let test_options_cmdliner =
         { mirage = false; skeleton = false; dev = false; overlay = false }
         list
     in
-    {
-      mirage_4 = Option.map make_commit_status mirage_4;
-    }
+    { mirage_4 = Option.map make_commit_status mirage_4 }
   in
   Term.(const make $ mirage_4)
 

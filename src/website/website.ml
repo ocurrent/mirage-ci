@@ -58,8 +58,7 @@ module Website_description = struct
     end
 
     module Source = struct
-      let build_mode_to_string = function
-        | `Mirage_4 -> "mirage-4"
+      let build_mode_to_string = function `Mirage_4 -> "mirage-4"
 
       let branch_name ref =
         match String.split_on_char '/' ref with
@@ -101,8 +100,7 @@ module Website_description = struct
         | `Github { kind = `Overlay _; _ } ->
             failwith "unknown overlay repository"
 
-      let build_mode_to_string = function
-        | `Mirage_4 -> "mirage-4"
+      let build_mode_to_string = function `Mirage_4 -> "mirage-4"
 
       let branch_name ref =
         match String.split_on_char '/' ref with
@@ -146,8 +144,7 @@ module Website_description = struct
       | `Github { ref = `Ref b; owner; name; _ } ->
           Fmt.str "https://github.com/%s/%s/tree/%s" owner name b
 
-    let build_mode_to_string = function
-      | `Mirage_4 -> "mirage-4"
+    let build_mode_to_string = function `Mirage_4 -> "mirage-4"
 
     let id = function
       | `Local `Mirage_4 -> "local-mirage-4"
