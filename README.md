@@ -15,11 +15,16 @@ In `src/pipelines/`, there are two kind of pipelines:
   - [mirage/mirage-skeleton](https://github.com/mirage/mirage-skeleton)
   - [mirage/opam-overlays](https://github.com/mirage/opam-overlays)
 
-By default, the testing workflow is implemented:
-- *Mirage4*, corresponding to the `--test-mirage-4` CLI option. This is testing:
+By default, two testing workflows are implemented:
+- *Mirage4* development, corresponding to the `--test-mirage-4` CLI option. This is testing:
   - [mirage#main](https://github.com/mirage/mirage)
   - [mirage-dev#master](https://github.com/mirage/mirage-dev)
-  - [mirage-skeleton#mirage-dev](https://github.com/mirage/mirage-skeleton/tree/mirage-dev)
+  - [mirage-skeleton#dev](https://github.com/mirage/mirage-skeleton/tree/dev)
+  - [opam-overlays#master](https://github.com/mirage/opam-overlays)
+
+- *Mirage4* release, corresponding to the `--test-mirage-4` CLI option. This is testing:
+  - [mirage](https://github.com/mirage/mirage) as released to opam repository
+  - [mirage-skeleton#main](https://github.com/mirage/mirage-skeleton/)
   - [opam-overlays#master](https://github.com/mirage/opam-overlays)
 
 **co-dependent PRs** `mirage-ci` will detect if PRs submitted to these
