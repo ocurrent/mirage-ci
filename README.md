@@ -15,13 +15,8 @@ In `src/pipelines/`, there are two kind of pipelines:
   - [mirage/mirage-skeleton](https://github.com/mirage/mirage-skeleton)
   - [mirage/opam-overlays](https://github.com/mirage/opam-overlays)
 
-By default, two testing workflows are implemented:
-- *Mirage3*, correspinding to the `--test-mirage-3` CLI option. This is testing:
-  - [mirage#3](https://github.com/mirage/mirage/tree/3)
-  - [mirage-dev#3](https://github.com/mirage/mirage-dev/tree/3)
-  - [mirage-skeleton#master](https://github.com/mirage/mirage-skeleton/tree/master)
-  - no opam overlays
-- *Mirage4*, correspinding to the `--test-mirage-3` CLI option. This is testing:
+By default, the testing workflow is implemented:
+- *Mirage4*, corresponding to the `--test-mirage-4` CLI option. This is testing:
   - [mirage#main](https://github.com/mirage/mirage)
   - [mirage-dev#master](https://github.com/mirage/mirage-dev)
   - [mirage-skeleton#mirage-dev](https://github.com/mirage/mirage-skeleton/tree/mirage-dev)
@@ -33,7 +28,7 @@ tested together.
 
 ## Updating the opam-repository commit
 
-The opam-repository commit used to test the applications is updated *once a day*. 
+The opam-repository commit used to test the applications is updated *once a day*.
 It's possible to manually ask the CI to update the commit:
 - go to the pipeline page: https://ci.mirage.io/?repo=mirage/mirage-skeleton&
 - click on the `clone https://github.com/ocaml/opam-repository master` box
@@ -89,7 +84,6 @@ $ docker service create \
   --privkey /ssh/git \
   --pubkey /ssh/git.pub \
   --test-mirage-4 mirage,skeleton,dev,overlay \
-  --test-mirage-3 mirage,skeleton,dev,overlay \
   --test-monorepos \
   --self-deploy
 ```
@@ -100,7 +94,7 @@ It is possible to test the pipeline locally, but it will still clone
 the repositories from GitHub. To do so:
 
 ```
-dune exec -- mirage-ci-local --test-mirage-3 --test-mirage-4
+dune exec -- mirage-ci-local --test-mirage-4
 ```
 
 ## PR testing

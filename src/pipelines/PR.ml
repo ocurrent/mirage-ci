@@ -239,8 +239,7 @@ module Run = struct
             Current_web_pipelines.State.stages = [ stage ];
             metadata =
               (match build_mode with
-              | Skeleton.Mirage_3 -> `Mirage_3
-              | _ -> `Mirage_4);
+              | Skeleton.Mirage_4 _ -> `Mirage_4);
           };
         ]
       in
@@ -263,8 +262,7 @@ module Run = struct
     let id_of gh_commit = Current.map Github.Api.Commit.id gh_commit
 
     let build_mode = function
-      | Skeleton.Mirage_3 -> `Mirage_3
-      | Mirage_4 _ -> `Mirage_4
+      | Skeleton.Mirage_4 _ -> `Mirage_4
 
     let resolve_repo ~friends source_repo repo =
       if Github_repository.equal source_repo repo then
@@ -276,9 +274,8 @@ module Run = struct
     let resolve_build_mode ~friends source_repo
         (github_tracked_repositories : github_tracked_repositories) =
       match github_tracked_repositories.build_mode with
-      | Skeleton.Mirage_3 -> (Current.return [], Skeleton.Mirage_3)
-      | Mirage_4 { overlay = None } ->
-          (Current.return [], Mirage_4 { overlay = None })
+      | Skeleton.Mirage_4 { overlay = None } ->
+          (Current.return [], Skeleton.Mirage_4 { overlay = None })
       | Mirage_4 { overlay = Some v } ->
           let overlays =
             (List.map (fun (name, repo) ->
@@ -320,8 +317,7 @@ module Run = struct
       (Current.map Option.to_list friend_prs, resolved)
 
     let build_mode_map fn = function
-      | Skeleton.Mirage_3 -> Skeleton.Mirage_3
-      | Mirage_4 { overlay } -> Mirage_4 { overlay = (Option.map fn) overlay }
+      | Skeleton.Mirage_4 { overlay } -> Skeleton.Mirage_4 { overlay = (Option.map fn) overlay }
 
     let friend_pr_merge lst = Current.list_seq lst |> Current.map List.flatten
 
@@ -448,10 +444,9 @@ type enable_commit_status = {
 
 type test_options = {
   mirage_4 : enable_commit_status option;
-  mirage_3 : enable_commit_status option;
 }
 
-let is_enabled t = Option.is_some t.mirage_4 || Option.is_some t.mirage_3
+let is_enabled t = Option.is_some t.mirage_4
 
 let test_options_cmdliner =
   let open Cmdliner in
@@ -469,10 +464,7 @@ let test_options_cmdliner =
   let mirage_4 =
     Arg.value (conv_commit_status (Arg.info [ "test-mirage-4" ]))
   in
-  let mirage_3 =
-    Arg.value (conv_commit_status (Arg.info [ "test-mirage-3" ]))
-  in
-  let make mirage_3 mirage_4 =
+  let make mirage_4 =
     let make_commit_status list =
       List.fold_left
         (fun acc -> function
@@ -485,10 +477,9 @@ let test_options_cmdliner =
     in
     {
       mirage_4 = Option.map make_commit_status mirage_4;
-      mirage_3 = Option.map make_commit_status mirage_3;
     }
   in
-  Term.(const make $ mirage_3 $ mirage_4)
+  Term.(const make $ mirage_4)
 
 type context = {
   config : Common.Config.t;
@@ -541,7 +532,7 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
       | None -> [])
     @
     match build_mode with
-    | Mirage_4 { overlay = None } -> []
+    | Skeleton.Mirage_4 { overlay = None } -> []
     | Mirage_4 { overlay = Some overlays } ->
         List.map
           (fun (_, repo) ->
@@ -553,7 +544,6 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
                 commit_status = enable_commit_status.overlay;
               } ))
           overlays
-    | Mirage_3 -> []
   in
   List.map
     (fun (repo, config) ->
@@ -588,7 +578,7 @@ let tests options =
           mirage_skeleton =
             { org = "mirage"; name = "mirage-skeleton"; branch = "main" };
           build_mode =
-            Mirage_4
+            Skeleton.Mirage_4
               {
                 overlay =
                   Some
@@ -610,21 +600,7 @@ let tests options =
         })
       options.mirage_4
   in
-  let m3 =
-    Option.map
-      (fun enable_commit_status ->
-        {
-          enable_commit_status;
-          mirage = { org = "mirage"; name = "mirage"; branch = "3" };
-          mirage_dev =
-            Some { org = "mirage"; name = "mirage-dev"; branch = "3" };
-          mirage_skeleton =
-            { org = "mirage"; name = "mirage-skeleton"; branch = "mirage-3" };
-          build_mode = Mirage_3;
-        })
-      options.mirage_3
-  in
-  Option.to_list m4 @ Option.to_list m3
+  Option.to_list m4
 
 (* WE PERFORM TWO SETS OF TESTS
    - mirage skeleton 'master' / mirage '3' / mirage-dev '3'
