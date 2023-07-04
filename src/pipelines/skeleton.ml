@@ -1,7 +1,7 @@
 open Current.Syntax
 open Common
 
-type 'a build_mode = Mirage_3 | Mirage_4 of { overlay : 'a option }
+type 'a build_mode = Mirage_4 of { overlay : 'a option }
 
 let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
 
@@ -13,16 +13,6 @@ let is_available_on (platform : Platform.t) = function
 let make_instructions =
   let open Obuilder_spec in
   function
-  | Mirage_3 ->
-      Current.return
-        [
-          run "opam exec -- make configure";
-          env "DUNE_CACHE" "enabled";
-          env "DUNE_CACHE_TRANSPORT" "direct";
-          run
-            ~cache:[ Setup.opam_download_cache; Setup.dune_build_cache ]
-            ~network:[ "host" ] "opam exec -- make build";
-        ]
   | Mirage_4 { overlay } ->
       let+ overlay =
         match overlay with
@@ -58,11 +48,7 @@ let make_instructions =
 (* Test all of mirage-skeleton at once *)
 let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
     ~build_mode mirage_skeleton =
-  let mirage_cmd =
-    match build_mode with
-    | Mirage_3 -> "\"mirage<4\""
-    | Mirage_4 _ -> "\"mirage>=4\""
-  in
+  let mirage_cmd = match build_mode with Mirage_4 _ -> "\"mirage>=4\"" in
   let spec =
     let+ repos = repos
     and+ make_instructions = make_instructions build_mode
@@ -71,11 +57,6 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
     let open Obuilder_spec in
     let pin_mirage =
       match (mirage, build_mode) with
-      | Some commit, Mirage_3 ->
-          [
-            run ~network:[ "host" ] "opam pin -ny %s --with-version 3.10.8"
-              (Setup.remote_uri commit);
-          ]
       | Some commit, Mirage_4 _ ->
           [
             run ~network:[ "host" ] "opam pin -ny %s" (Setup.remote_uri commit);

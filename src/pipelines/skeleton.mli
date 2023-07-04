@@ -1,6 +1,6 @@
 open Common
 
-type 'a build_mode = Mirage_3 | Mirage_4 of { overlay : 'a option }
+type 'a build_mode = Mirage_4 of { overlay : 'a option }
 
 val all_in_one_test :
   platform:Platform.t ->

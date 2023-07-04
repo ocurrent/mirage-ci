@@ -58,9 +58,7 @@ module Website_description = struct
     end
 
     module Source = struct
-      let build_mode_to_string = function
-        | `Mirage_3 -> "mirage-3"
-        | `Mirage_4 -> "mirage-4"
+      let build_mode_to_string = function `Mirage_4 -> "mirage-4"
 
       let branch_name ref =
         match String.split_on_char '/' ref with
@@ -71,7 +69,7 @@ module Website_description = struct
       type metadata_gh = {
         kind :
           [ `Mirage | `Mirage_dev | `Mirage_skeleton | `Overlay of string ];
-        build_mode : [ `Mirage_4 | `Mirage_3 ];
+        build_mode : [ `Mirage_4 ];
         commit : string;
         ref : Github.Api.Ref.t;
         owner : string;
@@ -89,7 +87,7 @@ module Website_description = struct
               (build_mode_to_string build_mode)
               owner name commit
 
-      type t = [ `Local of [ `Mirage_4 | `Mirage_3 ] | `Github of metadata_gh ]
+      type t = [ `Local of [ `Mirage_4 ] | `Github of metadata_gh ]
 
       let group = function
         | `Local _ -> Group.Local
@@ -102,9 +100,7 @@ module Website_description = struct
         | `Github { kind = `Overlay _; _ } ->
             failwith "unknown overlay repository"
 
-      let build_mode_to_string = function
-        | `Mirage_3 -> "mirage-3"
-        | `Mirage_4 -> "mirage-4"
+      let build_mode_to_string = function `Mirage_4 -> "mirage-4"
 
       let branch_name ref =
         match String.split_on_char '/' ref with
@@ -112,7 +108,6 @@ module Website_description = struct
         | _ -> "failure"
 
       let id = function
-        | `Local `Mirage_3 -> "local-mirage-3"
         | `Local `Mirage_4 -> "local-mirage-4"
         | `Github { ref = `PR { id; _ }; owner; name; build_mode; _ } ->
             Fmt.str "pr-%d-%s-%s-%s" id
@@ -124,7 +119,6 @@ module Website_description = struct
               owner name
 
       let to_string = function
-        | `Local `Mirage_3 -> "Local (mirage 3)"
         | `Local `Mirage_4 -> "Local (mirage 4)"
         | `Github { ref = `PR { id; title; _ }; _ } ->
             Fmt.str "PR #%d: %s" id title
@@ -150,12 +144,9 @@ module Website_description = struct
       | `Github { ref = `Ref b; owner; name; _ } ->
           Fmt.str "https://github.com/%s/%s/tree/%s" owner name b
 
-    let build_mode_to_string = function
-      | `Mirage_3 -> "mirage-3"
-      | `Mirage_4 -> "mirage-4"
+    let build_mode_to_string = function `Mirage_4 -> "mirage-4"
 
     let id = function
-      | `Local `Mirage_3 -> "local-mirage-3"
       | `Local `Mirage_4 -> "local-mirage-4"
       | `Github gh -> Source.gh_id gh
 
