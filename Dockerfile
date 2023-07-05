@@ -1,24 +1,8 @@
 FROM ocaml/opam:debian-11-ocaml-4.14@sha256:5ce947a2707d3cfe0d2a8918ef41c8b5f88ccddfcace11871c5f553afac189ed AS build
 RUN sudo ln -f /usr/bin/opam-2.1 /usr/bin/opam && opam init --reinit -ni
 RUN sudo apt-get update && sudo apt-get install libev-dev capnproto graphviz m4 pkg-config libsqlite3-dev libgmp-dev -y --no-install-recommends
-RUN cd ~/opam-repository && git pull origin master && git reset --hard 5d2f75662605cdbcd54e8040446480e701c718eb && opam update
-COPY --chown=opam \
-	vendor/ocurrent/current_docker.opam \
-	vendor/ocurrent/current_github.opam \
-	vendor/ocurrent/current_git.opam \
-	vendor/ocurrent/current.opam \
-	vendor/ocurrent/current_rpc.opam \
-	vendor/ocurrent/current_slack.opam \
-	vendor/ocurrent/current_web.opam \
-	/src/vendor/ocurrent/
+RUN cd ~/opam-repository && git pull origin master && git reset --hard 074df7088d0746fbdbc38584c912eb514aeec033 && opam update
 WORKDIR /src
-RUN opam pin add -yn current_docker.dev "./vendor/ocurrent" && \
-    opam pin add -yn current_github.dev "./vendor/ocurrent" && \
-    opam pin add -yn current_git.dev "./vendor/ocurrent" && \
-    opam pin add -yn current.dev "./vendor/ocurrent" && \
-    opam pin add -yn current_rpc.dev "./vendor/ocurrent" && \
-    opam pin add -yn current_slack.dev "./vendor/ocurrent" && \
-    opam pin add -yn current_web.dev "./vendor/ocurrent"
 COPY --chown=opam mirage-ci.opam /src/
 RUN opam install -y --deps-only .
 ADD --chown=opam . .
