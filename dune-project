@@ -39,6 +39,9 @@
   current_web
   current_git
   current_github
+  current_ocluster
+  current_rpc
+  current_docker
   fmt
   lwt
   (cmdliner (>= 0.9.8))
