@@ -596,7 +596,7 @@ let tests options =
              enable_commit_status;
              mirage = Some { org = "mirage"; name = "mirage"; branch = "main" };
              mirage_skeleton =
-               { org = "mirage"; name = "mirage-skeleton"; branch = "main" };
+               { org = "mirage"; name = "mirage-skeleton"; branch = "dev" };
              mirage_dev =
                Some { org = "mirage"; name = "mirage-dev"; branch = "master" };
              build_mode =
