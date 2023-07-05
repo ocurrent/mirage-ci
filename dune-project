@@ -39,7 +39,7 @@
   current_web
   current_git
   current_github
-  current_ocluster
+  (current_ocluster (>= 0.2))
   current_rpc
   current_docker
   fmt
@@ -48,7 +48,7 @@
   opam-file-format
   lambdasoup
   dockerfile
-  obuilder-spec
+  (obuilder-spec (>= 0.5))
   opam-0install
   (capnp-rpc-unix (>= 1.2.3))
   opam-format
