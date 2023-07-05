@@ -1,7 +1,7 @@
 FROM ocaml/opam:debian-11-ocaml-4.14@sha256:5ce947a2707d3cfe0d2a8918ef41c8b5f88ccddfcace11871c5f553afac189ed AS build
 RUN sudo ln -f /usr/bin/opam-2.1 /usr/bin/opam && opam init --reinit -ni
 RUN sudo apt-get update && sudo apt-get install libev-dev capnproto graphviz m4 pkg-config libsqlite3-dev libgmp-dev -y --no-install-recommends
-RUN cd ~/opam-repository && git pull origin master && git reset --hard 074df7088d0746fbdbc38584c912eb514aeec033 && opam update
+RUN cd ~/opam-repository && git pull origin master && git reset --hard 860072345fa2f234ff10ffeee88db6906e138e92 && opam update
 WORKDIR /src
 COPY --chown=opam mirage-ci.opam /src/
 RUN opam install -y --deps-only .
