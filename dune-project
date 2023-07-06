@@ -42,6 +42,7 @@
   (current_ocluster (>= 0.2))
   current_rpc
   current_docker
+  current-web-pipelines
   fmt
   lwt
   (cmdliner (>= 0.9.8))
