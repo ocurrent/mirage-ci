@@ -55,7 +55,8 @@ let main current_config github mode auth config
         let state =
           let state_active =
             Current_web_pipelines.Task.state prs
-            |> Current.map (List.map (fun v -> v.Current_web_pipelines.State.metadata) )
+            |> Current.map
+                 (List.map (fun v -> v.Current_web_pipelines.State.metadata))
             |> Website.set_active_sources website
           in
           let input = Current_web_pipelines.Task.state prs in
@@ -70,7 +71,8 @@ let main current_config github mode auth config
             end)
             (Website.update_state website)
             input
-          |> Current.pair state_active |> Current.map ignore
+          |> Current.pair state_active
+          |> Current.map ignore
           |> Current.collapse ~key:"current-web-pipeline-internals" ~value:""
                ~input:
                  (Current.return ~label:"current-web-pipelines internals" ())

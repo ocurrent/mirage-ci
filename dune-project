@@ -40,6 +40,7 @@
   current_git
   current_github
   (current_ocluster (>= 0.2))
+  (ocluster-api (>= 0.2))
   current_rpc
   current_docker
   current-web-pipelines
