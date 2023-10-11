@@ -31,7 +31,8 @@ let main current_config mode config
         let state =
           let state_active =
             Current_web_pipelines.Task.state main_ci
-            |> Current.map (List.map (fun v -> v.Current_web_pipelines.State.metadata) )
+            |> Current.map
+                 (List.map (fun v -> v.Current_web_pipelines.State.metadata))
             |> Website.set_active_sources website
           in
           Current.list_iter ~collapse_key:"update-web-state"
@@ -45,7 +46,8 @@ let main current_config mode config
             end)
             (Website.update_state website)
             (Current_web_pipelines.Task.state main_ci)
-          |> Current.pair state_active |> Current.map ignore
+          |> Current.pair state_active
+          |> Current.map ignore
         in
         [ ("mirage-main-ci", current); ("mirage-state", state) ]
         |> Current.all_labelled)
