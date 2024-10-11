@@ -62,7 +62,7 @@ type t =
 
 let gh_url (meta, stage) =
   Uri.of_string
-    (Fmt.str "https://ci.mirage.io%s"
+    (Fmt.str "https://ci.mirageos.org%s"
        (Website.pipeline_stage_url (`Github meta) stage))
 
 let github_status_of_state meta status =

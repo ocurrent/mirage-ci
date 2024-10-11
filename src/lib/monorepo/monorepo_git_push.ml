@@ -109,7 +109,7 @@ module GitPush = struct
           "-m";
           "monorepo-git-push";
           "--author";
-          "Mirage CI pipeline <ci@mirage.io>";
+          "Mirage CI pipeline <ci@mirageos.org>";
         |]
     in
     let** () =
