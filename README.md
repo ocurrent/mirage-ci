@@ -35,7 +35,7 @@ tested together.
 
 The opam-repository commit used to test the applications is updated *once a day*.
 It's possible to manually ask the CI to update the commit:
-- go to the pipeline page: https://ci.mirage.io/?repo=mirage/mirage-skeleton&
+- go to the pipeline page: https://ci.mirageos.org/?repo=mirage/mirage-skeleton&
 - click on the `clone https://github.com/ocaml/opam-repository master` box
 - click on `Rebuild`
 
@@ -63,9 +63,9 @@ dune exec -- mirage-ci \
 ## Deploying
 
 The `live` branch will automatically be deployed to
-[ci.mirage.io](https://ci.mirage.io/).
+[ci.mirageos.org](https://ci.mirageos.org/).
 
-To (re)-configure the live-deployer, log on `ci.mirage.io` and run:
+To (re)-configure the live-deployer, log on `ci.mirageos.org` and run:
 
 ```
 $ git clone -b live https://github.com/ocurrent/mirage-ci.git
@@ -82,10 +82,10 @@ $ docker service create \
   mirage-ci \
   --ocluster-cap /cap/mirage-ci.cap \
   --github-token-file /cap/github_mirage \
-  --git-ssh-host ci.mirage.io \
+  --git-ssh-host ci.mirageos.org \
   --git-ssh-repo mirage-ci/mirage-monorepo.git \
   --git-ssh-port 10022 \
-  --git-http-remote=https://ci.mirage.io/git/mirage-ci/mirage-ci-monorepo.git \
+  --git-http-remote=https://ci.mirageos.org/git/mirage-ci/mirage-ci-monorepo.git \
   --privkey /ssh/git \
   --pubkey /ssh/git.pub \
   --test-mirage-4 mirage,skeleton,dev,overlay \
