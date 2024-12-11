@@ -404,8 +404,13 @@ module Run = struct
              in
 
              let pipeline =
-               Platform.[ platform_v414_amd64; platform_v414_arm64 ;
-                          platform_v52_amd64; platform_v52_arm64 ; ]
+               Platform.
+                 [
+                   platform_v414_amd64;
+                   platform_v414_arm64;
+                   platform_v52_amd64;
+                   platform_v52_arm64;
+                 ]
                |> List.map (fun platform ->
                       perform_test ~metadata ~platform commit)
                |> Current_web_pipelines.Task.all
