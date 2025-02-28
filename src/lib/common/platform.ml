@@ -1,16 +1,10 @@
-type ocaml_version = V4_10 | V4_11 | V4_12 | V4_13
+type ocaml_version = V4_14 | V5_2
 
-let pp_ocaml f = function
-  | V4_10 -> Fmt.pf f "4.10"
-  | V4_11 -> Fmt.pf f "4.11"
-  | V4_12 -> Fmt.pf f "4.12"
-  | V4_13 -> Fmt.pf f "4.13"
+let pp_ocaml f = function V4_14 -> Fmt.pf f "4.14" | V5_2 -> Fmt.pf f "5.2"
 
 let pp_exact_ocaml f = function
-  | V4_10 -> Fmt.pf f "4.10.2"
-  | V4_11 -> Fmt.pf f "4.11.2"
-  | V4_12 -> Fmt.pf f "4.12.1"
-  | V4_13 -> Fmt.pf f "4.13.1"
+  | V4_14 -> Fmt.pf f "4.14.2"
+  | V5_2 -> Fmt.pf f "5.2.1"
 
 type os = Debian | Ubuntu | Fedora
 
@@ -48,17 +42,17 @@ let ocluster_pool { arch; _ } =
 
 (* Base configuration.. *)
 
-let platform_v412_amd64 =
-  { system = { ocaml = V4_12; os = Debian }; arch = Amd64 }
+let platform_v414_amd64 =
+  { system = { ocaml = V4_14; os = Debian }; arch = Amd64 }
 
-let platform_v412_arm64 =
-  { system = { ocaml = V4_12; os = Debian }; arch = Arm64 }
+let platform_v414_arm64 =
+  { system = { ocaml = V4_14; os = Debian }; arch = Arm64 }
 
-let platform_v413_amd64 =
-  { system = { ocaml = V4_13; os = Debian }; arch = Amd64 }
+let platform_v52_amd64 =
+  { system = { ocaml = V5_2; os = Debian }; arch = Amd64 }
 
-let platform_v413_arm64 =
-  { system = { ocaml = V4_13; os = Debian }; arch = Arm64 }
+let platform_v52_arm64 =
+  { system = { ocaml = V5_2; os = Debian }; arch = Arm64 }
 
 let platform_host =
   Bos.Cmd.(v "uname" % "-m")
@@ -66,6 +60,6 @@ let platform_host =
   |> Bos.OS.Cmd.out_string
   |> Result.to_option
   |> Option.map (function
-       | ("aarch64" | "arm64"), _ -> platform_v413_arm64
-       | _ -> platform_v413_amd64)
-  |> Option.value ~default:platform_v413_amd64
+       | ("aarch64" | "arm64"), _ -> platform_v414_arm64
+       | _ -> platform_v414_amd64)
+  |> Option.value ~default:platform_v414_amd64
