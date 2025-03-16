@@ -8,7 +8,7 @@ let pp_exact_ocaml f = function
 
 type os = Debian | Ubuntu | Fedora
 
-let os_version = function Ubuntu -> "20.04" | Fedora -> "33" | Debian -> "10"
+let os_version = function Ubuntu -> "24.04" | Fedora -> "41" | Debian -> "11"
 
 let os_family = function
   | Ubuntu -> "ubuntu"
