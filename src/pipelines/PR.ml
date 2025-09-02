@@ -408,8 +408,8 @@ module Run = struct
                  [
                    platform_v414_amd64;
                    platform_v414_arm64;
-                   platform_v52_amd64;
-                   platform_v52_arm64;
+                   platform_v53_amd64;
+                   platform_v53_arm64;
                  ]
                |> List.map (fun platform ->
                       perform_test ~metadata ~platform commit)

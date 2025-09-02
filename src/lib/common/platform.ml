@@ -1,10 +1,10 @@
-type ocaml_version = V4_14 | V5_2
+type ocaml_version = V4_14 | V5_3
 
-let pp_ocaml f = function V4_14 -> Fmt.pf f "4.14" | V5_2 -> Fmt.pf f "5.2"
+let pp_ocaml f = function V4_14 -> Fmt.pf f "4.14" | V5_3 -> Fmt.pf f "5.3"
 
 let pp_exact_ocaml f = function
   | V4_14 -> Fmt.pf f "4.14.2"
-  | V5_2 -> Fmt.pf f "5.2.1"
+  | V5_3 -> Fmt.pf f "5.3.0"
 
 type os = Debian | Ubuntu | Fedora
 
@@ -48,11 +48,11 @@ let platform_v414_amd64 =
 let platform_v414_arm64 =
   { system = { ocaml = V4_14; os = Debian }; arch = Arm64 }
 
-let platform_v52_amd64 =
-  { system = { ocaml = V5_2; os = Debian }; arch = Amd64 }
+let platform_v53_amd64 =
+  { system = { ocaml = V5_3; os = Debian }; arch = Amd64 }
 
-let platform_v52_arm64 =
-  { system = { ocaml = V5_2; os = Debian }; arch = Arm64 }
+let platform_v53_arm64 =
+  { system = { ocaml = V5_3; os = Debian }; arch = Arm64 }
 
 let platform_host =
   Bos.Cmd.(v "uname" % "-m")
