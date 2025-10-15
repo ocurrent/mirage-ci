@@ -70,6 +70,6 @@ let platform_host =
   |> Bos.OS.Cmd.out_string
   |> Result.to_option
   |> Option.map (function
-       | ("aarch64" | "arm64"), _ -> platform_v414_arm64
-       | _ -> platform_v414_amd64)
-  |> Option.value ~default:platform_v414_amd64
+       | ("aarch64" | "arm64"), _ -> platform_v53_arm64
+       | _ -> platform_v53_amd64)
+  |> Option.value ~default:platform_v53_amd64
