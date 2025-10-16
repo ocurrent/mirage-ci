@@ -3,10 +3,15 @@ open Common
 
 type 'a build_mode = Mirage_4 of { overlay : 'a option }
 
-let targets = [ "unix"; "hvt"; "xen" ] (* "virtio"; "spt"; "muen" ]*)
+let targets = [ "unix"; "hvt"; "xen"; "unikraft-qemu" ]
+(* "virtio"; "spt"; "muen" ]*)
+
+let is_unikraft_available_on (platform : Platform.t) =
+  match platform.system.ocaml with V5_3 | V5_4 -> true | _ -> false
 
 let is_available_on (platform : Platform.t) = function
   | "unix" | "hvt" -> true
+  | "unikraft-qemu" -> is_unikraft_available_on platform
   | "xen" when platform.arch = Amd64 -> true
   | _ -> false
 
