@@ -408,8 +408,6 @@ module Run = struct
                  [
                    platform_v414_amd64;
                    platform_v414_arm64;
-                   platform_v53_amd64;
-                   platform_v53_arm64;
                    platform_v54_amd64;
                    platform_v54_arm64;
                  ]
