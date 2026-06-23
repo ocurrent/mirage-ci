@@ -3,7 +3,7 @@ type ocaml_version = V4_14 | V5_4
 let pp_ocaml f = function V4_14 -> Fmt.pf f "4.14" | V5_4 -> Fmt.pf f "5.4"
 
 let pp_exact_ocaml f = function
-  | V4_14 -> Fmt.pf f "4.14.3"
+  | V4_14 -> Fmt.pf f "4.14.4"
   | V5_4 -> Fmt.pf f "5.4.1"
 
 type os = Debian | Ubuntu | Fedora
