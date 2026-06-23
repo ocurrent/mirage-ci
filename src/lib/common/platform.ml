@@ -1,10 +1,10 @@
-type ocaml_version = V4_14 | V5_4
+type ocaml_version = V4_14 | V5_5
 
-let pp_ocaml f = function V4_14 -> Fmt.pf f "4.14" | V5_4 -> Fmt.pf f "5.4"
+let pp_ocaml f = function V4_14 -> Fmt.pf f "4.14" | V5_5 -> Fmt.pf f "5.5"
 
 let pp_exact_ocaml f = function
   | V4_14 -> Fmt.pf f "4.14.4"
-  | V5_4 -> Fmt.pf f "5.4.1"
+  | V5_5 -> Fmt.pf f "5.5.0"
 
 type os = Debian | Ubuntu | Fedora
 
@@ -48,11 +48,11 @@ let platform_v414_amd64 =
 let platform_v414_arm64 =
   { system = { ocaml = V4_14; os = Debian }; arch = Arm64 }
 
-let platform_v54_amd64 =
-  { system = { ocaml = V5_4; os = Debian }; arch = Amd64 }
+let platform_v55_amd64 =
+  { system = { ocaml = V5_5; os = Debian }; arch = Amd64 }
 
-let platform_v54_arm64 =
-  { system = { ocaml = V5_4; os = Debian }; arch = Arm64 }
+let platform_v55_arm64 =
+  { system = { ocaml = V5_5; os = Debian }; arch = Arm64 }
 
 let platform_host =
   Bos.Cmd.(v "uname" % "-m")
@@ -60,6 +60,6 @@ let platform_host =
   |> Bos.OS.Cmd.out_string
   |> Result.to_option
   |> Option.map (function
-       | ("aarch64" | "arm64"), _ -> platform_v54_arm64
-       | _ -> platform_v54_amd64)
-  |> Option.value ~default:platform_v54_amd64
+       | ("aarch64" | "arm64"), _ -> platform_v55_arm64
+       | _ -> platform_v55_amd64)
+  |> Option.value ~default:platform_v55_amd64
