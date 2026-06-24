@@ -12,16 +12,16 @@ let v ~system ~repos =
   let+ solver = Current_solver.v ~system ~repos ~packages:[ "opam-monorepo" ] in
   { solver }
 
-let lock_spec ~system ~repos ~opam =
+let lock_spec ~base ~repos ~opam =
   let open Obuilder_spec in
   let opam_monorepo =
-    Platform.spec system
+    Spec.make base
     |> Spec.add (Setup.add_repositories repos)
     |> Spec.add (Setup.install_tools [ "opam-monorepo" ])
     |> Spec.add [ run "sudo cp $(opam var bin)/opam-monorepo /opam-monorepo" ]
     |> Spec.finish
   in
-  Platform.spec system
+  Spec.make base
   |> Spec.add (Setup.add_repositories repos)
   |> Spec.children ~name:"monorepo" opam_monorepo
   |> Spec.add
@@ -77,8 +77,10 @@ end
 
 let lock ~key ~config ~store ~repos ~opam ~system =
   let spec =
-    let+ opam = opam and+ repos = repos in
-    lock_spec ~system ~repos ~opam |> upload_spec ~store ~branch:key
+    let+ opam = opam
+    and+ repos = repos
+    and+ base = Platform.pull_base { system; arch = Platform.Amd64 } in
+    lock_spec ~base ~repos ~opam |> upload_spec ~store ~branch:key
   in
   let job = Common.Config.build config ~pool:"linux-x86_64" ~src:[] spec in
   let k =

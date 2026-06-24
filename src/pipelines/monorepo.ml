@@ -35,11 +35,11 @@ let get_monorepo_library ~mirage_only =
   |}
     (Fmt.list pp_project)
 
-let spec ~mode ~repos ~system ~toolchain ~lock =
+let spec ~mode ~repos ~base_image ~toolchain ~lock =
   let open Obuilder_spec in
   let base =
-    let+ repos = repos in
-    Platform.spec system |> Spec.add (Setup.add_repositories repos)
+    let+ repos = repos and+ base_image = base_image in
+    Spec.make base_image |> Spec.add (Setup.add_repositories repos)
   in
   let base =
     let+ base = base in
@@ -84,7 +84,8 @@ let spec ~mode ~repos ~system ~toolchain ~lock =
 
 let v ~config ~(platform : Platform.t) ~roots ~mode ?(src = [])
     ?(toolchain = Host) ~repos ~lock () =
-  let spec = spec ~system:platform.system ~mode ~repos ~toolchain ~lock in
+  let base_image = Platform.pull_base platform in
+  let spec = spec ~base_image ~mode ~repos ~toolchain ~lock in
   let mirage_only = match toolchain with Host -> false | _ -> true in
   let dune_build =
     let+ spec = spec in
