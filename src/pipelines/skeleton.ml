@@ -51,13 +51,14 @@ let make_instructions =
         ]
 
 (* Test all of mirage-skeleton at once *)
-let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
+let all_in_one_test ~(platform : Platform.t) ~target ~base ~repos ~mirage ~config
     ~build_mode mirage_skeleton =
   let mirage_cmd = match build_mode with Mirage_4 _ -> "\"mirage>=4\"" in
   let spec =
     let+ repos = repos
     and+ make_instructions = make_instructions build_mode
-    and+ mirage = Current.option_seq mirage in
+    and+ mirage = Current.option_seq mirage
+    and+ base = base in
 
     let open Obuilder_spec in
     let pin_mirage =
@@ -68,7 +69,7 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
           ]
       | None, _ -> []
     in
-    Platform.spec platform.system
+    Spec.make base
     |> Spec.add (Setup.add_repositories repos)
     |> Spec.add pin_mirage
     |> Spec.add (Setup.install_tools [ mirage_cmd ])
@@ -88,11 +89,15 @@ let all_in_one_test ~(platform : Platform.t) ~target ~repos ~mirage ~config
 
 let all_in_one_test ~(platform : Platform.t) ~repos ~mirage ~config ~build_mode
     mirage_skeleton =
+  (* Resolve the base image once per platform and share the result across all
+     targets, so the DAG shows a single "pull" node per platform rather than one
+     per build. *)
+  let base = Platform.pull_base platform in
   targets
   |> List.filter (is_available_on platform)
   |> List.map (fun target ->
-         all_in_one_test ~target ~platform ~repos ~mirage ~config ~build_mode
-           mirage_skeleton)
+         all_in_one_test ~target ~platform ~base ~repos ~mirage ~config
+           ~build_mode mirage_skeleton)
   |> Current_web_pipelines.Task.all
   |> Current_web_pipelines.Task.map_state (fun jobs ->
          {

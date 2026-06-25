@@ -28,6 +28,8 @@ let spec t = Spec.make @@ Fmt.str "ocaml/opam:%a" pp_system t
 
 type t = { system : system; arch : arch }
 
+let docker_arch = function Arm64 -> "arm64" | Amd64 -> "amd64"
+
 let platform_id t =
   match t.arch with
   | Arm64 -> "arm64-" ^ Fmt.str "%a" pp_system t.system
@@ -39,6 +41,26 @@ let pp_platform f t =
 
 let ocluster_pool { arch; _ } =
   match arch with Arm64 -> "linux-arm64" | Amd64 -> "linux-x86_64"
+
+(* The [ocaml/opam:<distro>-ocaml-<v>] tag is a floating multi-arch tag that
+   upstream rebuilds (e.g. when a new patch release of OCaml lands). obuilder
+   caches a fetched base image by the literal [from] string, so referencing the
+   floating tag directly means a worker never picks up a rebuild. Instead we
+   periodically re-resolve the tag to a concrete per-arch digest via
+   [docker manifest inspect] and feed that into the spec: when the digest moves,
+   obuilder's cache key changes and the worker re-fetches. Mirrors ocaml-ci,
+   including its 30-day cadence: upstream only rebuilds these base images
+   occasionally, so re-resolving more often just burns build cycles. *)
+let base_image_schedule =
+  Current_cache.Schedule.v ~valid_for:(Duration.of_day 30) ()
+
+let pull_base t =
+  let open Current.Syntax in
+  let tag = Fmt.str "ocaml/opam:%a" pp_system t.system in
+  Current.component "pull@,%a" pp_platform t
+  |> let> () = Current.return () in
+     Current_docker.Raw.peek ~docker_context:None
+       ~schedule:base_image_schedule ~arch:(docker_arch t.arch) tag
 
 (* Base configuration.. *)
 
