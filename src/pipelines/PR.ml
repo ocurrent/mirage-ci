@@ -157,7 +157,7 @@ module Run = struct
       commit_status : bool;
     }
 
-    let perform_test_and_report_status ~metadata
+    let perform_test_and_report_status ~metadata ~status_label
         { raw = { platform; _ } as raw; gh_commit; commit_status } =
       let pipeline = Raw.perform_test raw in
       let open Current_web_pipelines in
@@ -175,7 +175,8 @@ module Run = struct
               github_status_of_state (metadata, stage_state.metadata) state
             in
             Github.Api.Commit.set_status gh_commit
-              (Fmt.str "Mirage CI - %a" Platform.pp_platform platform)
+              (Fmt.str "Mirage CI (%s) - %a" status_label Platform.pp_platform
+                 platform)
               status
       in
       (* OK because commit_status is derived from pipeline *)
@@ -206,6 +207,7 @@ module Run = struct
       repos : Opam_repository.t list Current.t;
       tracked_repositories : github_tracked_repositories;
       commit_status : bool;
+      status_label : string;
     }
 
     type local = {
@@ -319,7 +321,7 @@ module Run = struct
 
     let friend_pr_merge lst = Current.list_seq lst |> Current.map List.flatten
 
-    let github { tracked_repositories; commit_status; repos; config }
+    let github { tracked_repositories; commit_status; repos; config; status_label }
         (repo : Github_repository.t) =
       let perform_test ~friends =
         let friend_pr_mirage_dev, mirage_dev =
@@ -355,7 +357,7 @@ module Run = struct
                   |> Current.list_seq)
                 build_mode
             in
-            Gh.perform_test_and_report_status ~metadata
+            Gh.perform_test_and_report_status ~metadata ~status_label
               {
                 Gh.raw =
                   {
@@ -485,10 +487,11 @@ type context = {
   config : Common.Config.t;
   enable_commit_status : enable_commit_status;
   repos : Opam_repository.t list Current.t;
+  status_label : string;
 }
 
 let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
-    { config; enable_commit_status; repos } =
+    { config; enable_commit_status; repos; status_label } =
   let config_with_mirage =
     { Run.Pipeline_run.mirage; mirage_dev; mirage_skeleton; build_mode }
   in
@@ -504,6 +507,7 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
           repos;
           tracked_repositories = config_with_mirage;
           commit_status = enable_commit_status.skeleton;
+          status_label;
         } );
     ]
     @ (match mirage with
@@ -516,6 +520,7 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
                 repos;
                 tracked_repositories = config_with_mirage;
                 commit_status = enable_commit_status.mirage;
+                status_label;
               } );
           ])
     @ (match mirage_dev with
@@ -527,6 +532,7 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
                 repos;
                 tracked_repositories = config_without_mirage;
                 commit_status = enable_commit_status.dev;
+                status_label;
               } );
           ]
       | None -> [])
@@ -542,6 +548,7 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
                 repos;
                 tracked_repositories = config_without_mirage;
                 commit_status = enable_commit_status.overlay;
+                status_label;
               } ))
           overlays
   in
@@ -559,6 +566,7 @@ let pipeline ~mirage ~mirage_skeleton ~mirage_dev ~build_mode
 type repo = { org : string; name : string; branch : string }
 
 type test_set = {
+  status_label : string;
   enable_commit_status : enable_commit_status;
   mirage : repo option;
   mirage_skeleton : repo;
@@ -572,6 +580,7 @@ let tests options =
        (fun enable_commit_status ->
          [
            {
+             status_label = "released";
              enable_commit_status;
              mirage = None;
              mirage_skeleton =
@@ -599,6 +608,7 @@ let tests options =
                  };
            };
            {
+             status_label = "edge";
              enable_commit_status;
              mirage = Some { org = "mirage"; name = "mirage"; branch = "main" };
              mirage_skeleton =
@@ -641,6 +651,7 @@ let make ~config ~options ~repos github =
   |> List.map
        (fun
          {
+           status_label;
            enable_commit_status;
            mirage;
            mirage_dev;
@@ -648,7 +659,7 @@ let make ~config ~options ~repos github =
            build_mode;
          }
        ->
-         let ctx = { config; enable_commit_status; repos } in
+         let ctx = { config; enable_commit_status; repos; status_label } in
          let mirage = Option.map github_setup mirage in
          let mirage_skeleton = github_setup mirage_skeleton in
          let mirage_dev = Option.map github_setup mirage_dev in
