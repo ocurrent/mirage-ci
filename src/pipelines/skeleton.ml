@@ -7,7 +7,7 @@ let targets = [ "unix"; "hvt"; "xen"; "unikraft-qemu" ]
 (* "virtio"; "spt"; "muen" ]*)
 
 let is_unikraft_available_on (platform : Platform.t) =
-  match platform.system.ocaml with V5_4 -> true | _ -> false
+  match platform.system.ocaml with V5_5 -> true | _ -> false
 
 let is_available_on (platform : Platform.t) = function
   | "unix" | "hvt" -> true
