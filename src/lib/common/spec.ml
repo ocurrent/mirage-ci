@@ -22,7 +22,9 @@ let make base =
         user_unix ~uid:1000 ~gid:1000;
         workdir "/home/opam";
         run "sudo chown opam:opam /home/opam";
-        run "sudo ln -f /usr/bin/opam-2.4 /usr/bin/opam && opam update";
+        run
+          "sudo ln -f /usr/bin/opam-2.6 /usr/bin/opam && opam init --reinit && \
+           opam update";
       ];
     children = [];
   }

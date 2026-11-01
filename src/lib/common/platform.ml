@@ -59,8 +59,8 @@ let pull_base t =
   let tag = Fmt.str "ocaml/opam:%a" pp_system t.system in
   Current.component "pull@,%a" pp_platform t
   |> let> () = Current.return () in
-     Current_docker.Raw.peek ~docker_context:None
-       ~schedule:base_image_schedule ~arch:(docker_arch t.arch) tag
+     Current_docker.Raw.peek ~docker_context:None ~schedule:base_image_schedule
+       ~arch:(docker_arch t.arch) tag
 
 (* Base configuration.. *)
 

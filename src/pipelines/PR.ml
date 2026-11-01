@@ -321,7 +321,8 @@ module Run = struct
 
     let friend_pr_merge lst = Current.list_seq lst |> Current.map List.flatten
 
-    let github { tracked_repositories; commit_status; repos; config; status_label }
+    let github
+        { tracked_repositories; commit_status; repos; config; status_label }
         (repo : Github_repository.t) =
       let perform_test ~friends =
         let friend_pr_mirage_dev, mirage_dev =
